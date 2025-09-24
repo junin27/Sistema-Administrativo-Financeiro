@@ -1,0 +1,246 @@
+### Testes da API - Sistema Financeiro
+### Para usar: instale a extensão REST Client no VS Code
+
+### Variáveis de ambiente
+@baseUrl = http://localhost:8000
+@apiVersion = v1
+
+### Health Check
+GET {{baseUrl}}/health
+Accept: application/json
+
+###
+
+### 1. FORNECEDORES
+
+### Listar todos os fornecedores
+GET {{baseUrl}}/api/{{apiVersion}}/suppliers
+Accept: application/json
+
+###
+
+### Criar novo fornecedor
+POST {{baseUrl}}/api/{{apiVersion}}/suppliers
+Content-Type: application/json
+
+{
+    "company_name": "Tech Solutions Ltda",
+    "trade_name": "TechSol",
+    "tax_id": "12345678000190",
+    "email": "contato@techsol.com.br",
+    "phone": "(11) 9999-1234",
+    "address": "Rua das Tecnologias, 123",
+    "city": "São Paulo",
+    "state": "SP",
+    "postal_code": "01234-567"
+}
+
+###
+
+### Buscar fornecedor por ID (substitua {id} pelo ID real)
+GET {{baseUrl}}/api/{{apiVersion}}/suppliers/1
+Accept: application/json
+
+###
+
+### Atualizar fornecedor
+PUT {{baseUrl}}/api/{{apiVersion}}/suppliers/1
+Content-Type: application/json
+
+{
+    "company_name": "Tech Solutions Ltda - Atualizada",
+    "trade_name": "TechSol Plus",
+    "tax_id": "12345678000190",
+    "email": "contato@techsolplus.com.br",
+    "phone": "(11) 9999-1234",
+    "address": "Rua das Tecnologias, 123",
+    "city": "São Paulo", 
+    "state": "SP",
+    "postal_code": "01234-567"
+}
+
+###
+
+### Soft delete de fornecedor
+DELETE {{baseUrl}}/api/{{apiVersion}}/suppliers/1
+
+###
+
+### 2. CLIENTES
+
+### Listar todos os clientes
+GET {{baseUrl}}/api/{{apiVersion}}/customers
+Accept: application/json
+
+###
+
+### Criar novo cliente
+POST {{baseUrl}}/api/{{apiVersion}}/customers
+Content-Type: application/json
+
+{
+    "company_name": "Cliente Premium Ltda",
+    "trade_name": "Premium Corp",
+    "tax_id": "55566677000188",
+    "email": "financeiro@premium.com.br",
+    "phone": "(11) 6666-1111",
+    "address": "Rua Premium, 100",
+    "city": "São Paulo",
+    "state": "SP",
+    "postal_code": "01111-000"
+}
+
+###
+
+### Buscar cliente por ID
+GET {{baseUrl}}/api/{{apiVersion}}/customers/1
+Accept: application/json
+
+###
+
+### 3. PESSOAS FATURADAS
+
+### Listar todas as pessoas faturadas
+GET {{baseUrl}}/api/{{apiVersion}}/billed-people
+Accept: application/json
+
+###
+
+### Criar nova pessoa faturada
+POST {{baseUrl}}/api/{{apiVersion}}/billed-people
+Content-Type: application/json
+
+{
+    "full_name": "João Silva Santos",
+    "document_id": "12345678901",
+    "email": "joao.silva@email.com",
+    "phone": "(11) 99999-0001",
+    "address": "Rua das Flores, 123",
+    "city": "São Paulo",
+    "state": "SP",
+    "postal_code": "01234-567"
+}
+
+###
+
+### 4. CONTAS A PAGAR
+
+### Listar contas a pagar
+GET {{baseUrl}}/api/{{apiVersion}}/payable-accounts
+Accept: application/json
+
+###
+
+### Criar conta a pagar
+POST {{baseUrl}}/api/{{apiVersion}}/payable-accounts
+Content-Type: application/json
+
+{
+    "supplier_id": 1,
+    "invoice_number": "NF-001/2024",
+    "issue_date": "2024-01-15",
+    "due_date": "2024-02-15",
+    "total_amount": 1500.00,
+    "description": "Serviços de consultoria em TI",
+    "account_type": "DESPESA",
+    "expense_category": "SERVICOS_TERCEIROS",
+    "installments_count": 1,
+    "current_installment": 1
+}
+
+###
+
+### 5. CONTAS A RECEBER
+
+### Listar contas a receber
+GET {{baseUrl}}/api/{{apiVersion}}/receivable-accounts
+Accept: application/json
+
+###
+
+### Criar conta a receber
+POST {{baseUrl}}/api/{{apiVersion}}/receivable-accounts
+Content-Type: application/json
+
+{
+    "customer_id": 1,
+    "invoice_number": "FAT-001/2024",
+    "issue_date": "2024-01-10",
+    "due_date": "2024-02-10",
+    "total_amount": 5500.00,
+    "description": "Desenvolvimento de sistema web",
+    "account_type": "RECEITA",
+    "revenue_category": "SERVICOS",
+    "installments_count": 2,
+    "current_installment": 1
+}
+
+###
+
+### 6. UPLOAD DE PDF
+
+### Upload de PDF para processamento
+POST {{baseUrl}}/api/{{apiVersion}}/pdf/upload
+Content-Type: multipart/form-data
+
+###
+
+### 7. BUSCA E FILTROS
+
+### Buscar fornecedores por nome
+GET {{baseUrl}}/api/{{apiVersion}}/suppliers?search=Tech
+Accept: application/json
+
+###
+
+### Filtrar contas por status
+GET {{baseUrl}}/api/{{apiVersion}}/payable-accounts?status=PENDENTE
+Accept: application/json
+
+###
+
+### Filtrar contas por período
+GET {{baseUrl}}/api/{{apiVersion}}/payable-accounts?start_date=2024-01-01&end_date=2024-12-31
+Accept: application/json
+
+###
+
+### 8. RELATÓRIOS
+
+### Relatório de contas a pagar em aberto
+GET {{baseUrl}}/api/{{apiVersion}}/reports/payable-open
+Accept: application/json
+
+###
+
+### Relatório de receitas por período
+GET {{baseUrl}}/api/{{apiVersion}}/reports/revenue?start_date=2024-01-01&end_date=2024-12-31
+Accept: application/json
+
+###
+
+### 9. ESTATÍSTICAS
+
+### Dashboard com resumo financeiro
+GET {{baseUrl}}/api/{{apiVersion}}/dashboard/summary
+Accept: application/json
+
+###
+
+### Total de fornecedores ativos
+GET {{baseUrl}}/api/{{apiVersion}}/stats/suppliers-count
+Accept: application/json
+
+###
+
+### 10. CATEGORIAS
+
+### Listar categorias de despesas
+GET {{baseUrl}}/api/{{apiVersion}}/categories/expenses
+Accept: application/json
+
+###
+
+### Listar categorias de receitas
+GET {{baseUrl}}/api/{{apiVersion}}/categories/revenues
+Accept: application/json

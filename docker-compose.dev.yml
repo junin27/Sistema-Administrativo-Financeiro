@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Banco de dados PostgreSQL para desenvolvimento
+  postgres:
+    image: postgres:15-alpine
+    container_name: sistema_financeiro_db_dev
+    environment:
+      POSTGRES_DB: sistema_financeiro_dev
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./backend/create_database.sql:/docker-entrypoint-initdb.d/01-create-database.sql
+    networks:
+      - sistema_financeiro_dev_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d sistema_financeiro_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend FastAPI para desenvolvimento
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_backend_dev
+    environment:
+      - DATABASE_URL=postgresql://dev_user:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/sistema_financeiro_dev
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    networks:
+      - sistema_financeiro_dev_network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React para desenvolvimento
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_frontend_dev
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+      - REACT_APP_ENV=development
+      - FAST_REFRESH=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - sistema_financeiro_dev_network
+    restart: unless-stopped
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
+  # PgAdmin para desenvolvimento
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sistema_financeiro_pgadmin_dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@sistema.com
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+    networks:
+      - sistema_financeiro_dev_network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local
+
+networks:
+  sistema_financeiro_dev_network:
+    driver: bridge
