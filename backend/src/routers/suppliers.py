@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from ..config.database import get_db
-from ..services.people import SupplierService
+from ..agent.people import SupplierService
 from ..schemas.people import (
     SupplierCreateSchema, 
     SupplierUpdateSchema, 

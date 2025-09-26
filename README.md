@@ -265,6 +265,12 @@ npm run lint
 - Percentual de confiança
 - Ajustes manuais
 
+#### 🧠 Sistema de Confiança IA
+- **Algoritmo de Confiança**: Baseado em análise de keywords
+- **Múltiplas Categorias**: Até 3 classificações por despesa
+- **Threshold Inteligente**: Confiança mínima de 30%
+- **Boost Automático**: Multiplicador para múltiplas keywords
+
 ---
 
 ## 🏗️ Arquitetura
@@ -276,7 +282,7 @@ sistema-financeiro/
 │   │   ├── config/         # Configurações
 │   │   ├── models/         # Modelos SQLAlchemy
 │   │   ├── schemas/        # Schemas Pydantic
-│   │   ├── services/       # Lógica de negócio
+│   │   ├── agent/         # Lógica de negócio e IA
 │   │   ├── repositories/   # Acesso a dados
 │   │   ├── routers/        # Endpoints da API
 │   │   └── core/          # Exceções e constantes
@@ -303,6 +309,233 @@ sistema-financeiro/
 - **Repository Pattern** - Abstração de acesso a dados
 - **Dependency Injection** - Inversão de controle
 - **Domain-Driven Design** - Modelagem orientada ao domínio
+
+---
+
+## 🧠 Algoritmo de Confiança IA
+
+### 📊 Como Funciona o Cálculo de Confiança
+
+O sistema utiliza um algoritmo inteligente para calcular o nível de confiança na classificação automática de despesas. O cálculo está implementado no arquivo:
+
+**📍 Localização:** `backend/src/agent/pdf_processing.py`
+
+#### 🔍 Método Principal: `_calculate_classification_confidence`
+
+```python
+# Linhas 513-535 do arquivo pdf_processing.py
+def _calculate_classification_confidence(
+    self, 
+    texto: str, 
+    descricao: str, 
+    keywords: List[str]
+) -> float:
+    """Calcula confiança da classificação baseada em keywords."""
+    
+    total_keywords = len(keywords)
+    found_keywords = 0
+    
+    for keyword in keywords:
+        if keyword in texto or keyword in descricao:
+            found_keywords += 1
+    
+    # Confiança básica baseada na proporção de keywords encontradas
+    base_confidence = found_keywords / total_keywords
+    
+    # Boost adicional se múltiplas keywords foram encontradas
+    if found_keywords > 1:
+        base_confidence *= 1.2
+    
+    return min(base_confidence, 1.0)
+```
+
+#### 🎯 Fórmula do Algoritmo
+
+1. **Confiança Base** = `keywords_encontradas / total_keywords`
+2. **Boost Múltiplas Keywords** = `confiança_base × 1.2` (se > 1 keyword)
+3. **Confiança Final** = `min(resultado, 1.0)` (máximo 100%)
+
+#### 📋 Sistema de Keywords por Categoria
+
+O sistema utiliza **palavras-chave (keywords)** para identificar automaticamente a categoria da despesa. Cada categoria possui uma lista específica de termos que são procurados tanto no **texto completo** da nota fiscal quanto na **descrição dos produtos**.
+
+### 🔍 **Como Funcionam as Keywords:**
+
+- **Busca Inteligente**: O sistema procura as keywords no texto em **lowercase** (minúsculas)
+- **Peso Duplo**: Keywords encontradas na **descrição dos produtos** valem mais que no texto geral
+- **Múltiplas Detecções**: Quanto mais keywords encontradas, maior a confiança
+- **Boost Específico**: Cada categoria tem um multiplicador de confiança próprio
+
+### 📊 **8 Categorias e suas Keywords:**
+
+#### 🌱 **1. INSUMOS AGRÍCOLAS** (Boost: 0.95)
+```
+Sementes: semente, sementes, milho, soja, feijão, arroz, trigo
+
+Fertilizantes: fertilizante, adubo, ureia, npk, superfosfato, 
+cloreto de potássio, sulfato de amônio, fosfato, nitrato
+
+Defensivos: defensivo, herbicida, inseticida, fungicida, pesticida, 
+agrotóxico, roundup, glifosato, atrazina
+
+Corretivos: corretivo, calcário, cal, gesso, micronutriente, inoculante
+```
+
+#### 🔧 **2. MANUTENÇÃO E OPERAÇÃO** (Boost: 0.90)
+```
+Combustíveis: combustível, diesel, gasolina, álcool, etanol, óleo, 
+lubrificante, graxa, fluido hidráulico, s10, aditivado, b s10
+
+Peças: peça, peças, parafuso, porca, arruela, rolamento, vedação, 
+componente, reparo, reposição, tubo, cabo, kit, fixação, fixacoes, 
+din, bucha, anel, junta
+
+Manutenção: manutenção, conserto, oficina, mecânico, soldagem
+
+Consumíveis: pneu, pneus, filtro, correia, mangueira, vela, bateria
+```
+
+#### 👥 **3. RECURSOS HUMANOS** (Boost: 0.95)
+```
+Mão de Obra: mão de obra, trabalhador, funcionário, operário, 
+diarista, temporário, safrista
+
+Encargos: salário, ordenado, pagamento, encargo, fgts, inss, 
+vale transporte, vale refeição, cesta básica, 13º salário, 
+férias, rescisão
+```
+
+#### 🚚 **4. SERVIÇOS OPERACIONAIS** (Boost: 0.90)
+```
+Transporte: frete, transporte, carreto, mudança, logística
+
+Terceirizados: colheita, terceirizada, colheitadeira, prestação de serviço
+
+Armazenagem: secagem, armazenagem, silo, estocagem, beneficiamento
+
+Aplicações: pulverização, aplicação, plantio, semeadura, cultivo
+```
+
+#### 🏗️ **5. INFRAESTRUTURA E UTILIDADES** (Boost: 0.85)
+```
+Energia: energia, elétrica, eletricidade, luz, força
+
+Propriedade: arrendamento, aluguel, terra, propriedade, hectare
+
+Construção: construção, reforma, obra, edificação, ampliação
+
+Materiais: material, concreto, cimento, ferro, madeira, tijolo, 
+telha, tinta, hidráulico, elétrico
+```
+
+#### 📋 **6. ADMINISTRATIVAS** (Boost: 0.90)
+```
+Honorários: honorário, contábil, advocatício, agronômico, 
+consultoria, assessoria, auditoria, perícia
+
+Bancárias: despesa bancária, financeira, juros, tarifa, anuidade, 
+cartão, conta corrente, empréstimo
+```
+
+#### 🛡️ **7. SEGUROS E PROTEÇÃO** (Boost: 0.95)
+```
+Seguros: seguro, agrícola, rural, safra, produtividade, ativo, 
+máquina, veículo, equipamento, prestamista, vida, proteção, 
+cobertura, sinistro
+```
+
+#### 💰 **8. IMPOSTOS E TAXAS** (Boost: 0.98)
+```
+Impostos Rurais: itr, iptu, ipva, incra, ccir
+
+Impostos Gerais: imposto, taxa, contribuição, tributo, icms, 
+ipi, pis, cofins, ir, csll, simples
+```
+
+### ⚙️ **Configuração das Keywords:**
+
+As keywords estão definidas no arquivo:
+**📍 `backend/src/agent/pdf_processing.py` (linhas 52-168)**
+
+```python
+self.classification_rules = {
+    "INSUMOS AGRÍCOLAS": {
+        "keywords": ["semente", "fertilizante", "adubo", ...],
+        "confidence_boost": 0.95
+    },
+    # ... outras categorias
+}
+```
+
+### 🎯 **Como Personalizar:**
+
+Para adicionar novas keywords ou categorias:
+
+1. **Edite o arquivo**: `backend/src/agent/pdf_processing.py`
+2. **Localize o método**: `_setup_classification_rules()` (linha 52)
+3. **Adicione keywords** na lista da categoria desejada
+4. **Reinicie o backend** para aplicar as mudanças
+
+### 📈 **Exemplo de Detecção:**
+
+Para uma nota com descrição: *"Compra de óleo diesel S10 aditivado"*
+
+```
+✅ Categoria: MANUTENÇÃO E OPERAÇÃO
+✅ Keywords encontradas: ["óleo", "diesel", "s10", "aditivado"]
+✅ Confiança: 4/25 keywords = 16% × 1.5 (boost descrição) = 24%
+✅ Resultado: Classificação aceita (> 15% threshold)
+```
+
+#### ⚙️ Processo de Classificação Atualizado
+
+```python
+# Linhas 465-511 do arquivo pdf_processing.py
+def _apply_automatic_classification(self, dados, texto_original):
+    """Aplica classificação automática de despesas baseada em keywords."""
+    
+    # 1. Converte texto para lowercase
+    texto_lower = texto_original.lower()
+    descricao_lower = dados.descricao_produtos.lower()
+    
+    # 2. Para cada categoria, calcula confiança
+    for categoria, rules in self.classification_rules.items():
+        confidence = self._calculate_classification_confidence(
+            texto_lower, descricao_lower, rules["keywords"]
+        )
+        
+        # 3. Aplica threshold mínimo de 15%
+        if confidence > 0.15:
+            # Adiciona classificação
+            
+    # 4. Ordena por confiança (maior primeiro)
+    # 5. Retorna até 3 melhores classificações
+```
+
+#### 🎛️ Parâmetros Configuráveis (Versão Atual)
+
+- **Threshold Mínimo**: `0.15` (15% de confiança)
+- **Boost Múltiplas Keywords**: `1.2` (20% adicional)
+- **Boost Descrição**: `1.5` (50% adicional se keyword na descrição)
+- **Penalização Fiscal**: `0.3` (70% redução para impostos sem match na descrição)
+- **Máximo Classificações**: `3` por despesa
+- **Confiança Máxima**: `1.0` (100%)
+
+#### 📈 Exemplo Prático Atualizado
+
+Para uma nota fiscal com descrição: *"15.000,00 L de ÓLEO DIESEL B S10 ADITIVADO"*
+
+1. **Categoria**: MANUTENÇÃO E OPERAÇÃO
+2. **Keywords da categoria**: [combustível, diesel, óleo, s10, aditivado, ...]
+3. **Keywords encontradas na descrição**: óleo, diesel, s10, aditivado (4 de 25)
+4. **Confiança base**: 4/25 = 0.16 (16%)
+5. **Boost múltiplas**: 0.16 × 1.2 = 0.192
+6. **Boost descrição**: 0.192 × 1.5 = 0.288
+7. **Confiança final**: 28.8%
+
+✅ **Resultado**: Classificação aceita (28.8% > 15% threshold)
+
+---
 
 ## 🔧 Troubleshooting
 
@@ -405,7 +638,7 @@ sistema-financeiro/
 │   │   ├── 📁 config/         # Configurações (database.py, settings.py)
 │   │   ├── 📁 models/         # Modelos SQLAlchemy
 │   │   ├── 📁 schemas/        # Schemas Pydantic (validação)
-│   │   ├── 📁 services/       # Lógica de negócio
+│   │   ├── 📁 agent/         # Lógica de negócio e IA
 │   │   ├── 📁 repositories/   # Acesso a dados
 │   │   ├── 📁 routers/        # Endpoints da API
 │   │   ├── 📁 core/          # Exceções e constantes
