@@ -332,7 +332,7 @@ export function PdfProcessing() {
               {processedData.dados_extraidos?.classificacoes_despesa && processedData.dados_extraidos.classificacoes_despesa.length > 0 && (
                 <div className="card">
                   <div className="card-header">
-                    <h3 className="text-lg font-medium">Classificações de Despesa Sugeridas pela IA</h3>
+                    <h3 className="text-lg font-medium">Classificações de Despesa</h3>
                   </div>
                   <div className="card-body">
                     <div className="space-y-3">

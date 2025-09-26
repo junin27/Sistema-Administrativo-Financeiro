@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from ..config.database import get_db
-from ..services.pdf_processing import PDFProcessingService
+from ..agent.pdf_processing import PDFProcessingService
 from ..schemas.pdf_processing import ProcessamentoPDFResponseSchema
 
 router = APIRouter(prefix="/pdf", tags=["Processamento PDF"])
