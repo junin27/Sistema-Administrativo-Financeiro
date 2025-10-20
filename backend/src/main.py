@@ -13,7 +13,7 @@ import time
 
 from .config.settings import settings
 from .config.database import init_db, get_db
-from .routers import suppliers, pdf
+from .routers import suppliers, pdf, payable_accounts
 from .core.constants import INTERNAL_SERVER_ERROR
 
 # Configurar logging
@@ -143,6 +143,7 @@ async def shutdown_event():
 # Routers
 app.include_router(suppliers.router, prefix="/api/v1")
 app.include_router(pdf.router, prefix="/api/v1")
+app.include_router(payable_accounts.router, prefix="/api/v1")
 
 
 # Health check
