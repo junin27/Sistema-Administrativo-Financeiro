@@ -100,6 +100,16 @@ export interface RevenueTypeUpdate {
   notes?: string;
 }
 
+export interface RevenueTypeFilter {
+  description?: string;
+  notes?: string;
+  active?: boolean;
+  search?: string;
+  include_inactive?: boolean;
+  page?: number;
+  size?: number;
+}
+
 // ExpenseType (Tipo de Despesa)
 export type ExpenseCategory = 
   | 'INSUMOS AGRÍCOLAS'
@@ -238,6 +248,8 @@ export interface ReceivableInstallment extends BaseEntity {
 export interface PaginationParams {
   page?: number;
   size?: number;
+  skip?: number;
+  limit?: number;
 }
 
 export interface PaginationResponse<T> {

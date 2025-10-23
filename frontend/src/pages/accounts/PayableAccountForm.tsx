@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, TrendingDown, Plus, Trash2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { payableAccountService } from '../../services/payableAccountService';
 import {
   PayableAccountCreateEtapa2,
   InstallmentCreate,
   PayableAccountValidationResponse,
+  PayableAccountResponse,
   ValidationResult,
   ExpenseCategory
 } from '../../types/payableAccounts';
 
 export function PayableAccountForm() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
   
   // Estados do formulário
   const [formData, setFormData] = useState<PayableAccountCreateEtapa2>({
@@ -44,6 +47,7 @@ export function PayableAccountForm() {
   const [validationResults, setValidationResults] = useState<PayableAccountValidationResponse | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showBilledPerson, setShowBilledPerson] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -60,6 +64,59 @@ export function PayableAccountForm() {
     'IMPOSTOS E TAXAS',
     'INVESTIMENTOS'
   ];
+
+  // Carregar dados da conta para edição
+  useEffect(() => {
+    if (isEditing && id) {
+      loadAccountData(id);
+    }
+  }, [isEditing, id]);
+
+  const loadAccountData = async (accountId: string) => {
+    try {
+      setIsLoading(true);
+      setErrorMessage('');
+      
+      const account = await payableAccountService.getPayableAccountById(accountId);
+      
+      // Preencher formulário com dados da conta
+      setFormData({
+        invoice_number: account.invoice_number || '',
+        issue_date: account.issue_date.split('T')[0], // Converter para formato de data do input
+        product_description: account.product_description || '',
+        total_amount: account.total_amount,
+        supplier: {
+          company_name: account.supplier?.company_name || '',
+          tax_id: account.supplier?.tax_id || ''
+        },
+        billed_person: {
+          full_name: account.billed_person?.full_name || '',
+          document_id: account.billed_person?.document_id || ''
+        },
+        expense: {
+          description: account.expense?.description || '',
+          category: (account.expense?.category as ExpenseCategory) || 'MANUTENÇÃO E OPERAÇÃO'
+        },
+        installments: account.installments?.map(installment => ({
+          installment_number: installment.installment_number,
+          due_date: installment.due_date.split('T')[0], // Converter para formato de data do input
+          installment_amount: installment.installment_amount,
+          notes: installment.notes || ''
+        })) || []
+      });
+
+      // Mostrar pessoa faturada se existir
+      if (account.billed_person?.full_name) {
+        setShowBilledPerson(true);
+      }
+      
+    } catch (error) {
+      console.error('Erro ao carregar conta:', error);
+      setErrorMessage('Erro ao carregar dados da conta. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Função para atualizar campos do formulário
   const updateFormData = (path: string, value: any) => {
@@ -140,28 +197,47 @@ export function PayableAccountForm() {
     }
   };
 
-  // Função para criar conta a pagar
-  const handleCreate = async () => {
-    setIsCreating(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    
+  // Função para criar/atualizar conta a pagar
+  const handleSubmit = async () => {
     try {
-      const result = await payableAccountService.createPayableAccount(formData);
-      
-      if (result.success) {
-        setSuccessMessage(result.message);
-        setValidationResults(result.validation_results);
-        
-        // Limpar formulário após sucesso
-        setTimeout(() => {
-          navigate('/contas-pagar');
-        }, 3000);
+      setIsCreating(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      if (isEditing && id) {
+        // Atualizar conta existente
+        await payableAccountService.updatePayableAccount(id, formData);
+        setSuccessMessage('Conta a pagar atualizada com sucesso!');
       } else {
-        setErrorMessage('Erro ao criar conta a pagar');
+        // Criar nova conta
+        const result = await payableAccountService.createPayableAccount(formData);
+        
+        if (result.success) {
+          setSuccessMessage(result.message);
+          setValidationResults(result.validation_results);
+        } else {
+          setErrorMessage('Erro ao criar conta a pagar');
+          return;
+        }
       }
+
+      // Redirecionar após sucesso
+      setTimeout(() => {
+        navigate('/contas-pagar');
+      }, 2000);
+
     } catch (error: any) {
-      setErrorMessage(error.response?.data?.detail || 'Erro ao criar conta a pagar');
+      console.error('Erro ao salvar conta:', error);
+      
+      if (error.response?.data?.detail) {
+        if (typeof error.response.data.detail === 'string') {
+          setErrorMessage(error.response.data.detail);
+        } else if (Array.isArray(error.response.data.detail)) {
+          setErrorMessage(error.response.data.detail.map((err: any) => err.msg).join(', '));
+        }
+      } else {
+        setErrorMessage(`Erro ao ${isEditing ? 'atualizar' : 'criar'} conta a pagar. Tente novamente.`);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -193,32 +269,47 @@ export function PayableAccountForm() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <TrendingDown className="h-8 w-8 mr-3 text-red-600" />
-            Nova Conta a Pagar - Etapa 2
+            {isEditing ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar - Etapa 2'}
           </h1>
           <p className="text-gray-600 mt-1">
-            Registre uma nova conta a pagar com validação automática de fornecedor, faturado e despesa
+            {isEditing ? 'Edite os dados da conta a pagar' : 'Registre uma nova conta a pagar com validação automática de fornecedor, faturado e despesa'}
           </p>
         </div>
       </div>
 
-      {/* Mensagens de sucesso e erro */}
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-            <span className="text-green-800 font-medium">{successMessage}</span>
+      {/* Loading state para edição */}
+      {isLoading && (
+        <div className="card">
+          <div className="card-body">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-500">Carregando dados da conta...</p>
+            </div>
           </div>
         </div>
       )}
 
-      {errorMessage && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-            <span className="text-red-800">{errorMessage}</span>
-          </div>
-        </div>
-      )}
+      {/* Formulário principal - só mostra se não estiver carregando */}
+      {!isLoading && (
+        <>
+          {/* Mensagens de sucesso e erro */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                <span className="text-green-700 font-medium">{successMessage}</span>
+              </div>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                <span className="text-red-700 font-medium">{errorMessage}</span>
+              </div>
+            </div>
+          )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dados do Movimento */}
@@ -551,26 +642,28 @@ export function PayableAccountForm() {
         </div>
       )}
 
-      {/* Botões de Ação */}
-      <div className="flex justify-end space-x-4">
-        <button
-          type="button"
-          onClick={handleValidate}
-          disabled={isValidating}
-          className="btn-outline"
-        >
-          {isValidating ? 'Validando...' : 'Validar Dados'}
-        </button>
-        
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={isCreating || !formData.supplier.company_name || !formData.supplier.tax_id || !formData.expense.description}
-          className="btn-primary"
-        >
-          {isCreating ? 'Criando...' : 'Criar Conta a Pagar'}
-        </button>
-      </div>
+          {/* Botões de Ação */}
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={handleValidate}
+              disabled={isValidating}
+              className="btn-outline"
+            >
+              {isValidating ? 'Validando...' : 'Validar Dados'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isCreating || !formData.supplier.company_name || !formData.supplier.tax_id || !formData.expense.description}
+              className="btn-primary"
+            >
+              {isCreating ? (isEditing ? 'Atualizando...' : 'Criando...') : (isEditing ? 'Atualizar Conta a Pagar' : 'Criar Conta a Pagar')}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

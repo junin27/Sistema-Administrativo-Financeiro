@@ -1,0 +1,327 @@
+"""
+Routers para os modelos DDL (Pessoas e MovimentoContas).
+Define endpoints REST para operações CRUD.
+"""
+
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+from math import ceil
+
+from ..config.database import get_db
+from ..repositories.ddl_repositories import PessoasRepository, MovimentoContasRepository
+from ..models.ddl_models import MovimentoContas  # Adicionando import do modelo MovimentoContas
+from ..core.exceptions import DuplicateInvoiceError
+from ..schemas.ddl_schemas import (
+    PessoasCreate, PessoasUpdate, PessoasResponse, PessoasListResponse, PessoasFilter,
+    MovimentoContasCreate, MovimentoContasUpdate, MovimentoContasResponse, 
+    MovimentoContasListResponse, MovimentoContasFilter, MovimentoContasResumo
+)
+
+# Router para Pessoas
+pessoas_router = APIRouter(prefix="/pessoas", tags=["Pessoas"])
+
+@pessoas_router.post("/", response_model=PessoasResponse, status_code=status.HTTP_201_CREATED)
+async def create_pessoa(
+    pessoa: PessoasCreate,
+    db: Session = Depends(get_db)
+):
+    """Cria uma nova pessoa."""
+    repo = PessoasRepository(db)
+    
+    # Verificar se documento já existe
+    if pessoa.documento:
+        existing = repo.find_by_documento(pessoa.documento)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pessoa com este documento já existe"
+            )
+    
+    return repo.create(pessoa.model_dump(exclude_unset=True))
+
+
+@pessoas_router.get("/", response_model=PessoasListResponse)
+async def list_pessoas(
+    page: int = Query(1, ge=1, description="Número da página"),
+    size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
+    tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
+    status: Optional[str] = Query(None, description="Filtrar por status"),
+    search: Optional[str] = Query(None, description="Buscar por nome"),
+    db: Session = Depends(get_db)
+):
+    """Lista pessoas com paginação e filtros."""
+    repo = PessoasRepository(db)
+    skip = (page - 1) * size
+    
+    # Aplicar filtros
+    if search:
+        items = repo.search_by_name(search)
+    elif tipo:
+        items = repo.find_by_tipo(tipo)
+    elif status:
+        items = repo.find_active_by_status(status)
+    else:
+        items = repo.get_all(skip=skip, limit=size)
+    
+    # Paginação manual para filtros
+    if search or tipo or status:
+        total = len(items)
+        items = items[skip:skip + size]
+    else:
+        # Para listagem geral, contar total
+        total = len(repo.get_all())
+    
+    return PessoasListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total > 0 else 1
+    )
+
+
+@pessoas_router.get("/{pessoa_id}", response_model=PessoasResponse)
+async def get_pessoa(
+    pessoa_id: int,
+    db: Session = Depends(get_db)
+):
+    """Busca pessoa por ID."""
+    repo = PessoasRepository(db)
+    pessoa = repo.get_by_id(pessoa_id)
+    
+    if not pessoa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pessoa não encontrada"
+        )
+    
+    return pessoa
+
+
+@pessoas_router.put("/{pessoa_id}", response_model=PessoasResponse)
+async def update_pessoa(
+    pessoa_id: int,
+    pessoa_update: PessoasUpdate,
+    db: Session = Depends(get_db)
+):
+    """Atualiza uma pessoa."""
+    repo = PessoasRepository(db)
+    
+    # Verificar se pessoa existe
+    existing = repo.get_by_id(pessoa_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pessoa não encontrada"
+        )
+    
+    # Verificar documento duplicado
+    if pessoa_update.documento and pessoa_update.documento != existing.documento:
+        doc_exists = repo.find_by_documento(pessoa_update.documento)
+        if doc_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pessoa com este documento já existe"
+            )
+    
+    updated = repo.update(pessoa_id, pessoa_update.model_dump(exclude_unset=True))
+    return updated
+
+
+@pessoas_router.delete("/{pessoa_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pessoa(
+    pessoa_id: int,
+    db: Session = Depends(get_db)
+):
+    """Remove uma pessoa."""
+    repo = PessoasRepository(db)
+    
+    if not repo.delete(pessoa_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pessoa não encontrada"
+        )
+
+
+# Router para MovimentoContas
+movimento_router = APIRouter(prefix="/movimentos", tags=["Movimento de Contas"])
+
+@movimento_router.get("/resumo", response_model=List[MovimentoContasResumo])
+async def get_resumo(
+    db: Session = Depends(get_db)
+):
+    """Retorna resumo de movimentos agrupados por tipo."""
+    repo = MovimentoContasRepository(db)
+    
+    # Buscar tipos únicos - corrigindo a consulta
+    tipos = db.query(MovimentoContas.tipo).distinct().all()
+    resumos = []
+    
+    for tipo_row in tipos:
+        tipo = tipo_row[0]
+        if tipo:
+            movimentos = repo.find_by_tipo(tipo)
+            total_valor = repo.get_total_by_tipo(tipo)
+            
+            resumos.append(MovimentoContasResumo(
+                tipo=tipo,
+                total_movimentos=len(movimentos),
+                valor_total=total_valor
+            ))
+    
+    return resumos
+
+
+@movimento_router.get("/resumo/por-tipo", response_model=List[MovimentoContasResumo])
+async def get_resumo_por_tipo(
+    db: Session = Depends(get_db)
+):
+    """Retorna resumo de movimentos agrupados por tipo (rota alternativa)."""
+    return await get_resumo(db)
+
+
+@movimento_router.post("/", response_model=MovimentoContasResponse, status_code=status.HTTP_201_CREATED)
+async def create_movimento(
+    movimento: MovimentoContasCreate,
+    db: Session = Depends(get_db)
+):
+    """Cria um novo movimento de contas."""
+    repo = MovimentoContasRepository(db)
+    pessoas_repo = PessoasRepository(db)
+    
+    # Verificar se as pessoas existem
+    if not pessoas_repo.get_by_id(movimento.Pessoas_idFornecedorCliente):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Fornecedor/Cliente não encontrado"
+        )
+    
+    if not pessoas_repo.get_by_id(movimento.Pessoas_idfaturado):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pessoa faturada não encontrada"
+        )
+    
+    # Verificar nota fiscal duplicada
+    if movimento.numeronotafiscal:
+        existing = repo.find_by_nota_fiscal(movimento.numeronotafiscal)
+        if existing:
+            raise DuplicateInvoiceError(movimento.numeronotafiscal)
+    
+    return repo.create(movimento.model_dump(exclude_unset=True))
+
+
+@movimento_router.get("/", response_model=MovimentoContasListResponse)
+async def list_movimentos(
+    page: int = Query(1, ge=1, description="Número da página"),
+    size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
+    tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
+    status: Optional[str] = Query(None, description="Filtrar por status"),
+    fornecedor_id: Optional[int] = Query(None, description="Filtrar por fornecedor"),
+    db: Session = Depends(get_db)
+):
+    """Lista movimentos com paginação e filtros."""
+    repo = MovimentoContasRepository(db)
+    skip = (page - 1) * size
+    
+    # Aplicar filtros
+    if tipo:
+        items = repo.find_by_tipo(tipo)
+    elif status:
+        items = repo.find_by_status(status)
+    elif fornecedor_id:
+        items = repo.find_by_fornecedor(fornecedor_id)
+    else:
+        items = repo.get_all(skip=skip, limit=size)
+    
+    # Paginação manual para filtros
+    if tipo or status or fornecedor_id:
+        total = len(items)
+        items = items[skip:skip + size]
+    else:
+        total = len(repo.get_all())
+    
+    return MovimentoContasListResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total > 0 else 1
+    )
+
+
+@movimento_router.get("/{movimento_id}", response_model=MovimentoContasResponse)
+async def get_movimento(
+    movimento_id: int,
+    db: Session = Depends(get_db)
+):
+    """Busca movimento por ID."""
+    repo = MovimentoContasRepository(db)
+    movimento = repo.get_by_id(movimento_id)
+    
+    if not movimento:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimento não encontrado"
+        )
+    
+    return movimento
+
+
+@movimento_router.put("/{movimento_id}", response_model=MovimentoContasResponse)
+async def update_movimento(
+    movimento_id: int,
+    movimento_update: MovimentoContasUpdate,
+    db: Session = Depends(get_db)
+):
+    """Atualiza um movimento."""
+    repo = MovimentoContasRepository(db)
+    pessoas_repo = PessoasRepository(db)
+    
+    # Verificar se movimento existe
+    existing = repo.get_by_id(movimento_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimento não encontrado"
+        )
+    
+    # Verificar pessoas se fornecidas
+    if movimento_update.Pessoas_idFornecedorCliente:
+        if not pessoas_repo.get_by_id(movimento_update.Pessoas_idFornecedorCliente):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Fornecedor/Cliente não encontrado"
+            )
+    
+    if movimento_update.Pessoas_idfaturado:
+        if not pessoas_repo.get_by_id(movimento_update.Pessoas_idfaturado):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pessoa faturada não encontrada"
+            )
+    
+    updated = repo.update(movimento_id, movimento_update.model_dump(exclude_unset=True))
+    return updated
+
+
+@movimento_router.delete("/{movimento_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_movimento(
+    movimento_id: int,
+    db: Session = Depends(get_db)
+):
+    """Remove um movimento."""
+    repo = MovimentoContasRepository(db)
+    
+    if not repo.delete(movimento_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimento não encontrado"
+        )
+
+
+# Router principal que combina todos
+ddl_router = APIRouter(prefix="/api/v1")
+ddl_router.include_router(pessoas_router)
+ddl_router.include_router(movimento_router)

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { 
   Plus, 
@@ -13,7 +13,8 @@ import {
   Edit,
   Trash2,
   RotateCcw,
-  Building2
+  Building2,
+  Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -25,9 +26,10 @@ interface SuppliersTableProps {
   onEdit: (supplier: Supplier) => void;
   onDelete: (supplier: Supplier) => void;
   onReactivate: (supplier: Supplier) => void;
+  onViewDetails: (supplier: Supplier) => void;
 }
 
-function SuppliersTable({ suppliers, onEdit, onDelete, onReactivate }: SuppliersTableProps) {
+function SuppliersTable({ suppliers, onEdit, onDelete, onReactivate, onViewDetails }: SuppliersTableProps) {
   return (
     <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
       <table className="table">
@@ -53,6 +55,13 @@ function SuppliersTable({ suppliers, onEdit, onDelete, onReactivate }: Suppliers
               </td>
               <td>
                 <div className="flex space-x-2">
+                  <button
+                    onClick={() => onViewDetails(supplier)}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="Ver Detalhes"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => onEdit(supplier)}
                     className="text-blue-600 hover:text-blue-900"
@@ -88,6 +97,7 @@ function SuppliersTable({ suppliers, onEdit, onDelete, onReactivate }: Suppliers
 }
 
 export function Suppliers() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<SupplierFilter>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -103,6 +113,10 @@ export function Suppliers() {
     () => supplierService.list(filters),
     {
       keepPreviousData: true,
+      onError: (error: any) => {
+        console.error('Erro ao carregar fornecedores:', error);
+        toast.error('Erro ao carregar fornecedores. Tente novamente.');
+      }
     }
   );
 
@@ -112,8 +126,12 @@ export function Suppliers() {
   };
 
   const handleEdit = (supplier: Supplier) => {
-    // Navegar para página de edição
-    window.location.href = `/fornecedores/${supplier.id}/editar`;
+    // Navegar para página de edição usando navigate
+    navigate(`/fornecedores/${supplier.id}/editar`);
+  };
+
+  const handleViewDetails = (supplier: Supplier) => {
+    navigate(`/fornecedores/${supplier.id}`);
   };
 
   const handleDelete = async (supplier: Supplier) => {
@@ -275,13 +293,29 @@ export function Suppliers() {
         <div className="flex items-center justify-center h-64">
           <div className="loading-spinner"></div>
         </div>
-      ) : data && data.items.length > 0 ? (
+      ) : error ? (
+        <div className="text-center py-12">
+          <Building2 className="mx-auto h-12 w-12 text-red-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            Erro ao carregar fornecedores
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Ocorreu um erro ao carregar os dados. Tente novamente.
+          </p>
+          <div className="mt-6">
+            <button onClick={() => refetch()} className="btn-primary">
+              Tentar Novamente
+            </button>
+          </div>
+        </div>
+      ) : data && data.items && data.items.length > 0 ? (
         <div className="space-y-4">
           <SuppliersTable
             suppliers={data.items}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onReactivate={handleReactivate}
+            onViewDetails={handleViewDetails}
           />
           
           {/* Paginação */}

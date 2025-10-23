@@ -13,7 +13,7 @@ import type {
   PaginationResponse 
 } from '../types/entities';
 
-const BASE_URL = '/suppliers';
+const BASE_URL = '/api/v1/suppliers';
 
 export const supplierService = {
   /**

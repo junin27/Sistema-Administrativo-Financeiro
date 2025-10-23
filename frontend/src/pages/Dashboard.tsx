@@ -15,21 +15,8 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
-
-// Mockdata - depois será substituída por API real
-const mockStats = {
-  totalSuppliers: 45,
-  totalCustomers: 128,
-  totalPayable: 125000.50,
-  totalReceivable: 87500.25,
-  overdueBills: 8,
-  paidThisMonth: 15,
-  recentActivity: [
-    { id: 1, type: 'payment', description: 'Pagamento para Fornecedor ABC', amount: 2500.00, date: '2025-09-20' },
-    { id: 2, type: 'receipt', description: 'Recebimento de Cliente XYZ', amount: 1800.00, date: '2025-09-19' },
-    { id: 3, type: 'invoice', description: 'Nova fatura processada via PDF', amount: 3200.00, date: '2025-09-18' },
-  ]
-};
+import { pessoasService } from '../services/pessoasService';
+import { movimentosService } from '../services/movimentosService';
 
 interface StatCardProps {
   title: string;
@@ -94,10 +81,66 @@ function formatCurrency(value: number): string {
 }
 
 export function Dashboard() {
-  // Aqui depois será substituído por query real da API
-  const { data: stats, isLoading } = useQuery('dashboard-stats', () => 
-    Promise.resolve(mockStats)
+  // Buscar dados reais das APIs
+  const { data: pessoas, isLoading: isLoadingPessoas } = useQuery(
+    'dashboard-pessoas', 
+    () => pessoasService.getAll({ page: 1, size: 100 })
   );
+
+  const { data: movimentos, isLoading: isLoadingMovimentos } = useQuery(
+    'dashboard-movimentos', 
+    () => movimentosService.getAll({ page: 1, size: 100 })
+  );
+
+  const { data: resumo, isLoading: isLoadingResumo } = useQuery(
+    'dashboard-resumo', 
+    () => movimentosService.getResumo()
+  );
+
+  const isLoading = isLoadingPessoas || isLoadingMovimentos || isLoadingResumo;
+
+  // Calcular estatísticas baseadas nos dados reais
+  const stats = React.useMemo(() => {
+    if (!pessoas || !movimentos || !resumo) return null;
+
+    const totalSuppliers = pessoas.items?.filter(p => p.tipo === 'fornecedor').length || 0;
+    const totalCustomers = pessoas.items?.filter(p => p.tipo === 'cliente').length || 0;
+    
+    const contasPagar = movimentos.items?.filter(m => m.tipo === 'despesa' && m.status !== 'pago') || [];
+    const contasReceber = movimentos.items?.filter(m => m.tipo === 'receita' && m.status !== 'pago') || [];
+    
+    const totalPayable = contasPagar.reduce((sum, m) => sum + m.valor, 0);
+    const totalReceivable = contasReceber.reduce((sum, m) => sum + m.valor, 0);
+    
+    const today = new Date();
+    const overdueBills = movimentos.items?.filter(m => 
+      m.status !== 'pago' && new Date(m.data_vencimento) < today
+    ).length || 0;
+    
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    const paidThisMonth = movimentos.items?.filter(m => 
+      m.status === 'pago' && new Date(m.data_emissao) >= thisMonth
+    ).length || 0;
+
+    const recentActivity = movimentos.items?.slice(0, 5).map(m => ({
+      id: m.id,
+      type: m.tipo === 'receita' ? 'receipt' : 'payment',
+      description: `${m.tipo === 'receita' ? 'Recebimento' : 'Pagamento'} - NF ${m.numero_nota_fiscal}`,
+      amount: m.valor,
+      date: m.data_emissao
+    })) || [];
+
+    return {
+      totalSuppliers,
+      totalCustomers,
+      totalPayable,
+      totalReceivable,
+      overdueBills,
+      paidThisMonth,
+      recentActivity
+    };
+  }, [pessoas, movimentos, resumo]);
 
   if (isLoading) {
     return (
@@ -124,14 +167,12 @@ export function Dashboard() {
           value={stats?.totalSuppliers || 0}
           icon={Building2}
           color="blue"
-          trend={{ value: 12, label: 'vs mês anterior', positive: true }}
         />
         <StatCard
           title="Total Clientes"
           value={stats?.totalCustomers || 0}
           icon={Users}
           color="green"
-          trend={{ value: 8, label: 'vs mês anterior', positive: true }}
         />
         <StatCard
           title="Contas a Pagar"
@@ -189,7 +230,13 @@ export function Dashboard() {
                 <h3 className="text-lg font-medium text-gray-900">
                   Vencimentos Hoje
                 </h3>
-                <p className="text-2xl font-bold text-blue-600">3</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {movimentos?.items?.filter(m => {
+                    const today = new Date().toDateString();
+                    const vencimento = new Date(m.data_vencimento).toDateString();
+                    return m.status !== 'pago' && vencimento === today;
+                  }).length || 0}
+                </p>
               </div>
             </div>
           </div>

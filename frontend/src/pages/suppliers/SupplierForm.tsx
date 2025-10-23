@@ -27,7 +27,10 @@ const supplierSchema = z.object({
     .or(z.literal('')),
   tax_id: z.string()
     .min(1, 'CNPJ é obrigatório')
-    .regex(/^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ deve estar no formato XX.XXX.XXX/XXXX-XX')
+    .refine((val) => {
+      const cleaned = val.replace(/\D/g, '');
+      return cleaned.length >= 11 && cleaned.length <= 14;
+    }, 'CNPJ deve ter entre 11 e 14 dígitos')
 });
 
 type SupplierFormData = z.infer<typeof supplierSchema>;
@@ -89,8 +92,21 @@ export function SupplierForm() {
         );
         navigate('/fornecedores');
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('Erro ao salvar fornecedor:', error);
+        
+        // Verificar se é erro de duplicação (409)
+        if (error?.response?.status === 409) {
+          toast.error('Já existe um fornecedor cadastrado com este CNPJ!');
+        } else if (error?.response?.data?.detail) {
+          toast.error(error.response.data.detail);
+        } else {
+          toast.error(
+            isEditing 
+              ? 'Erro ao atualizar fornecedor. Tente novamente.' 
+              : 'Erro ao criar fornecedor. Tente novamente.'
+          );
+        }
       }
     }
   );

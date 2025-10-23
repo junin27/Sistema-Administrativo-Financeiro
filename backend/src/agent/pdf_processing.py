@@ -13,6 +13,8 @@ import re
 import google.generativeai as genai
 import PyPDF2
 from io import BytesIO
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
 
 from ..config.settings import settings
 from ..schemas.pdf_processing import (
@@ -23,6 +25,19 @@ from ..schemas.pdf_processing import (
     ParcelaExtraidaSchema,
     ClassificacaoDespesaExtraidaSchema
 )
+from ..schemas.post_processing_schemas import (
+    PostProcessingResult,
+    FornecedorExistenceCheck,
+    FaturadoExistenceCheck,
+    DespesaExistenceCheck,
+    EntityExistenceStatus,
+    TransactionLog
+)
+from ..repositories.ddl_repositories import PessoasRepository, MovimentoContasRepository
+from ..repositories.expense_type_repository import ExpenseTypeRepository
+from ..models.ddl_models import Pessoas, MovimentoContas
+from ..models.expense_type_models import ExpenseType
+from ..core.exceptions import DuplicateInvoiceError
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -43,7 +58,7 @@ class PDFProcessingService:
         """Configura a API do Google Gemini."""
         try:
             genai.configure(api_key=settings.gemini_api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
             logger.info("Google Gemini AI configurado com sucesso")
         except Exception as e:
             logger.error(f"Erro ao configurar Gemini AI: {e}")
@@ -246,7 +261,21 @@ class PDFProcessingService:
         logger.info("=" * 50)
         
         try:
-            response = self.model.generate_content(prompt)
+            # Configurar timeout para a chamada do Gemini
+            import asyncio
+            import concurrent.futures
+            
+            # Timeout de 60 segundos para processamento da IA
+            timeout_seconds = 60
+            
+            # Executar a chamada do Gemini com timeout
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(self.model.generate_content, prompt)
+                try:
+                    response = future.result(timeout=timeout_seconds)
+                except concurrent.futures.TimeoutError:
+                    logger.error(f"Timeout na chamada do Gemini AI após {timeout_seconds} segundos")
+                    raise TimeoutError(f"Processamento da IA excedeu o tempo limite de {timeout_seconds} segundos")
             
             if not response.text:
                 raise ValueError("Resposta vazia da IA Gemini")
@@ -277,6 +306,12 @@ class PDFProcessingService:
             
             return validated_data
             
+        except TimeoutError as e:
+            logger.error(f"Timeout na IA Gemini: {e}")
+            raise HTTPException(
+                status_code=408,
+                detail="Processamento da IA excedeu o tempo limite. Tente novamente."
+            )
         except Exception as e:
             logger.error(f"Erro ao processar com Gemini: {e}")
             logger.error(f"Tipo do erro: {type(e)}")
@@ -425,12 +460,12 @@ class PDFProcessingService:
                         ).date()
                     
                     if isinstance(parcela.get("valor_parcela"), str):
-                        parcela["valor_parcela"] = Decimal(str(parcela["valor_parcela"]))
+                        parcela["valor_parcela"] = float(parcela["valor_parcela"])
             
             # Converter valor total
             if isinstance(data.get("valor_total"), str):
                 logger.info(f"Convertendo valor_total: {data.get('valor_total')}")
-                data["valor_total"] = Decimal(str(data["valor_total"]))
+                data["valor_total"] = float(data["valor_total"])
             
             # Inicializar classificações vazias (serão preenchidas depois)
             # Adicionar classificação temporária para passar na validação
@@ -500,7 +535,7 @@ class PDFProcessingService:
                 classificacao = ClassificacaoDespesaExtraidaSchema(
                     categoria=categoria,
                     descricao=descricao_especifica,
-                    percentual=Decimal("100.00"),
+                    percentual=100.00,
                     confianca=confidence
                 )
                 classificacoes.append(classificacao)
@@ -511,7 +546,7 @@ class PDFProcessingService:
                 ClassificacaoDespesaExtraidaSchema(
                     categoria="ADMINISTRATIVAS",
                     descricao="Classificação automática - Revisar manualmente",
-                    percentual=Decimal("100.00"),
+                    percentual=100.00,
                     confianca=0.2
                 )
             )
@@ -603,3 +638,556 @@ class PDFProcessingService:
             return f"{categoria} - {', '.join(found_keywords[:3])}"
         else:
             return f"{categoria} - Classificação automática"
+    
+    async def process_post_extraction(
+        self, 
+        pdf_content: bytes,
+        filename: str,
+        db: Session
+    ) -> PostProcessingResult:
+        """
+        Processa PDF completo: extração + pós-processamento.
+        Implementa o fluxo completo com verificação de existência e criação de entidades.
+        """
+        import uuid
+        transaction_id = str(uuid.uuid4())
+        start_time = time.time()
+        logs = []
+        errors = []
+        
+        logger.info(f"INICIANDO PROCESSAMENTO COMPLETO - Transaction ID: {transaction_id}")
+        logs.append(f"Iniciando processamento completo - Transaction ID: {transaction_id}")
+        
+        try:
+            # Primeiro, extrair dados do PDF
+            logs.append("Extraindo dados do PDF...")
+            extraction_result = await self.process_pdf(pdf_content, filename)
+            
+            if not extraction_result.sucesso or not extraction_result.dados_extraidos:
+                error_msg = extraction_result.erro or "Falha na extração de dados do PDF"
+                return PostProcessingResult(
+                    success=False,
+                    transaction_id=transaction_id,
+                    processing_time=time.time() - start_time,
+                    error_message=error_msg,
+                    logs=logs + [f"Erro na extração: {error_msg}"]
+                )
+            
+            dados_extraidos = extraction_result.dados_extraidos
+            logs.append(f"Dados extraídos com sucesso: {dados_extraidos.numero_nota_fiscal or 'N/A'}")
+            
+            # Agora fazer o pós-processamento
+            return await self._execute_post_processing(dados_extraidos, db, transaction_id, start_time, logs)
+            
+        except DuplicateInvoiceError:
+            raise
+        except Exception as e:
+            error_msg = f"Erro no processamento completo: {str(e)}"
+            logger.error(error_msg)
+            return PostProcessingResult(
+                success=False,
+                transaction_id=transaction_id,
+                processing_time=time.time() - start_time,
+                error_message=error_msg,
+                logs=logs + [error_msg]
+            )
+    
+    async def _execute_post_processing(
+        self, 
+        dados_extraidos: DadosExtraidosPDFSchema, 
+        db: Session,
+        transaction_id: str,
+        start_time: float,
+        logs: List[str]
+    ) -> PostProcessingResult:
+        """
+        Executa o pós-processamento dos dados extraídos.
+        Verifica existência e cria entidades conforme necessário.
+        """
+        errors = []
+        
+        logger.info(f"EXECUTANDO PÓS-PROCESSAMENTO - Transaction ID: {transaction_id}")
+        logs.append(f"Executando pós-processamento - Transaction ID: {transaction_id}")
+        
+        try:
+            # Inicializar repositórios
+            pessoas_repo = PessoasRepository(db)
+            movimento_repo = MovimentoContasRepository(db)
+            expense_repo = ExpenseTypeRepository(db)
+            
+            # Verificar se é nota fiscal duplicada ANTES de fazer outras verificações
+            existing_movimento = await self._check_duplicate_invoice(dados_extraidos, movimento_repo, logs)
+            
+            # Verificar existência do fornecedor
+            fornecedor_check = await self._check_fornecedor_existence(
+                dados_extraidos.fornecedor, pessoas_repo, logs
+            )
+            
+            # Verificar existência do faturado
+            faturado_check = await self._check_faturado_existence(
+                dados_extraidos.faturado, pessoas_repo, logs
+            )
+            
+            # Verificar existência das despesas
+            despesas_check = []
+            for despesa in dados_extraidos.classificacoes_despesa:
+                despesa_check = await self._check_despesa_existence(
+                    despesa, expense_repo, logs
+                )
+                despesas_check.append(despesa_check)
+            
+            # Se é nota fiscal duplicada, retornar informações sem criar movimento
+            if existing_movimento:
+                processing_time = time.time() - start_time
+                logs.append(f"Nota fiscal duplicada detectada - retornando informações existentes")
+                
+                # Criar uma exceção customizada com as informações processadas
+                duplicate_error = DuplicateInvoiceError(
+                    dados_extraidos.numero_nota_fiscal,
+                    message=f"Nota fiscal {dados_extraidos.numero_nota_fiscal} já foi processada anteriormente",
+                    details={
+                        "invoice_number": dados_extraidos.numero_nota_fiscal,
+                        "existing_movement_id": existing_movimento.idMovimentoContas,
+                        "verification_data": {
+                            "supplier": {
+                                "exists": fornecedor_check.status.exists,
+                                "id": fornecedor_check.status.entity_id,
+                                "company_name": fornecedor_check.razao_social,
+                                "message": fornecedor_check.status.message if hasattr(fornecedor_check.status, 'message') else 
+                                          ("Fornecedor já existe no sistema" if fornecedor_check.status.exists else "Fornecedor não existe no sistema")
+                            },
+                            "billed_person": {
+                                "exists": faturado_check.status.exists,
+                                "id": faturado_check.status.entity_id,
+                                "full_name": faturado_check.razao_social,
+                                "message": faturado_check.status.message if hasattr(faturado_check.status, 'message') else
+                                          ("Pessoa faturada já existe no sistema" if faturado_check.status.exists else "Pessoa faturada não existe no sistema")
+                            },
+                            "expense_types": [
+                                {
+                                    "exists": despesa.status.exists,
+                                    "id": despesa.status.entity_id,
+                                    "description": despesa.descricao,
+                                    "category": despesa.categoria,
+                                    "message": despesa.status.message if hasattr(despesa.status, 'message') else
+                                              ("Tipo de despesa já existe no sistema" if despesa.status.exists else "Tipo de despesa não existe no sistema")
+                                }
+                                for despesa in despesas_check
+                            ]
+                        },
+                        "extracted_data": dados_extraidos.dict()
+                    }
+                )
+                raise duplicate_error
+            
+            # Criar entidades não existentes em transação única
+            movimento_id = None
+            movimento_criado = False
+            
+            try:
+                # Não iniciar transação aqui - deixar os repositórios gerenciarem
+                # db.begin()  # Removido para evitar conflito
+                
+                # Criar fornecedor se não existir
+                if not fornecedor_check.status.exists:
+                    fornecedor_check = await self._create_fornecedor(
+                        dados_extraidos.fornecedor, pessoas_repo, logs, transaction_id
+                    )
+                
+                # Criar faturado se não existir
+                if not faturado_check.status.exists:
+                    faturado_check = await self._create_faturado(
+                        dados_extraidos.faturado, pessoas_repo, logs, transaction_id
+                    )
+                
+                # Criar tipos de despesa se não existirem
+                for i, despesa_check in enumerate(despesas_check):
+                    if not despesa_check.status.exists:
+                        despesas_check[i] = await self._create_despesa(
+                            dados_extraidos.classificacoes_despesa[i], 
+                            expense_repo, logs, transaction_id
+                        )
+                
+                # Criar movimento completo
+                movimento_id = await self._create_movimento_completo(
+                    dados_extraidos, fornecedor_check, faturado_check, 
+                    movimento_repo, logs, transaction_id
+                )
+                movimento_criado = True
+                
+                # db.commit()  # Removido - cada repositório faz seu próprio commit
+                logs.append("Operações concluídas com sucesso")
+                logger.info("Operações concluídas com sucesso")
+                
+            except Exception as e:
+                # db.rollback()  # Removido - não há transação global para reverter
+                error_msg = f"Erro na transação: {str(e)}"
+                errors.append(error_msg)
+                logs.append(f"Erro nas operações: {error_msg}")
+                logger.error(error_msg)
+                raise
+            
+            processing_time = time.time() - start_time
+            
+            result = PostProcessingResult(
+                success=True,  # Adicionar campo success
+                fornecedor=fornecedor_check,
+                faturado=faturado_check,
+                despesas=despesas_check,
+                extracted_data=dados_extraidos,  # Adicionar dados extraídos
+                movimento_criado=movimento_criado,
+                movimento_id=movimento_id,
+                transaction_id=transaction_id,
+                processing_time=processing_time,
+                logs=logs,
+                errors=errors
+            )
+            
+            logger.info(f"PÓS-PROCESSAMENTO CONCLUÍDO - Transaction ID: {transaction_id}")
+            return result
+            
+        except DuplicateInvoiceError:
+            raise
+        except Exception as e:
+            processing_time = time.time() - start_time
+            error_msg = f"Erro no pós-processamento: {str(e)}"
+            errors.append(error_msg)
+            logger.error(error_msg)
+            
+            return PostProcessingResult(
+                success=False,  # Adicionar campo success
+                fornecedor=FornecedorExistenceCheck(
+                    razao_social="Erro",
+                    status=EntityExistenceStatus(exists=False)
+                ),
+                faturado=FaturadoExistenceCheck(
+                    razao_social="Erro",
+                    status=EntityExistenceStatus(exists=False)
+                ),
+                despesas=[],
+                movimento_criado=False,
+                movimento_id=None,
+                transaction_id=transaction_id,
+                processing_time=processing_time,
+                logs=logs,
+                errors=errors
+            )
+    
+    async def _check_fornecedor_existence(
+        self, 
+        fornecedor: FornecedorExtraidoSchema, 
+        repo: PessoasRepository, 
+        logs: List[str]
+    ) -> FornecedorExistenceCheck:
+        """Verifica se o fornecedor existe no banco de dados."""
+        try:
+            # Buscar por documento e nome
+            pessoa = None
+            if fornecedor.cnpj:  # Usar CNPJ em vez de documento
+                pessoa = repo.find_fornecedor_by_documento_and_name(
+                    fornecedor.cnpj, fornecedor.razao_social
+                )
+            
+            if not pessoa and fornecedor.razao_social:
+                # Buscar apenas por razão social
+                pessoa = repo.find_by_razao_social_and_tipo(
+                    fornecedor.razao_social, "FORNECEDOR"
+                )
+            
+            if pessoa:
+                logs.append(f"Fornecedor encontrado: {pessoa.razaosocial} (ID: {pessoa.idPessoas})")
+                return FornecedorExistenceCheck(
+                    documento=fornecedor.cnpj,  # Usar CNPJ como documento
+                    razao_social=fornecedor.razao_social,
+                    status=EntityExistenceStatus(
+                        exists=True,
+                        entity_id=pessoa.idPessoas,
+                        entity_data={
+                            "id": pessoa.idPessoas,
+                            "razao_social": pessoa.razaosocial,
+                            "documento": pessoa.documento,
+                            "tipo": pessoa.tipo
+                        }
+                    )
+                )
+            else:
+                logs.append(f"Fornecedor não encontrado: {fornecedor.razao_social}")
+                return FornecedorExistenceCheck(
+                    documento=fornecedor.cnpj,  # Usar CNPJ como documento
+                    razao_social=fornecedor.razao_social,
+                    status=EntityExistenceStatus(exists=False)
+                )
+                
+        except Exception as e:
+            logs.append(f"Erro ao verificar fornecedor: {str(e)}")
+            return FornecedorExistenceCheck(
+                documento=fornecedor.cnpj,  # Usar CNPJ como documento
+                razao_social=fornecedor.razao_social,
+                status=EntityExistenceStatus(exists=False)
+            )
+    
+    async def _check_faturado_existence(
+        self, 
+        faturado: FaturadoExtraidoSchema, 
+        repo: PessoasRepository, 
+        logs: List[str]
+    ) -> FaturadoExistenceCheck:
+        """Verifica se o faturado existe no banco de dados."""
+        try:
+            # Buscar por documento e nome
+            pessoa = None
+            if faturado.cpf:
+                pessoa = repo.find_faturado_by_documento_and_name(
+                    faturado.cpf, faturado.nome_completo
+                )
+            
+            if not pessoa and faturado.nome_completo:
+                # Buscar apenas por razão social
+                pessoa = repo.find_by_razao_social_and_tipo(
+                    faturado.nome_completo, "FATURADO"
+                )
+            
+            if pessoa:
+                logs.append(f"Faturado encontrado: {pessoa.razaosocial} (ID: {pessoa.idPessoas})")
+                return FaturadoExistenceCheck(
+                    documento=faturado.cpf,
+                    razao_social=faturado.nome_completo,
+                    status=EntityExistenceStatus(
+                        exists=True,
+                        entity_id=pessoa.idPessoas,
+                        entity_data={
+                            "id": pessoa.idPessoas,
+                            "razao_social": pessoa.razaosocial,
+                            "documento": pessoa.documento,
+                            "tipo": pessoa.tipo
+                        }
+                    )
+                )
+            else:
+                logs.append(f"Faturado não encontrado: {faturado.nome_completo}")
+                return FaturadoExistenceCheck(
+                    documento=faturado.cpf,
+                    razao_social=faturado.nome_completo,
+                    status=EntityExistenceStatus(exists=False)
+                )
+                
+        except Exception as e:
+            logs.append(f"Erro ao verificar faturado: {str(e)}")
+            return FaturadoExistenceCheck(
+            documento=faturado.cpf,
+            razao_social=faturado.nome_completo,
+                status=EntityExistenceStatus(exists=False)
+            )
+    
+    async def _check_despesa_existence(
+        self, 
+        despesa: ClassificacaoDespesaExtraidaSchema, 
+        repo: ExpenseTypeRepository, 
+        logs: List[str]
+    ) -> DespesaExistenceCheck:
+        """Verifica se o tipo de despesa existe no banco de dados."""
+        try:
+            # Buscar por descrição exata
+            expense_type = repo.find_by_description(despesa.descricao)
+            
+            if expense_type:
+                logs.append(f"Tipo de despesa encontrado: {expense_type.description} (ID: {expense_type.id})")
+                return DespesaExistenceCheck(
+                    descricao=despesa.descricao,
+                    categoria=despesa.categoria,
+                    status=EntityExistenceStatus(
+                        exists=True,
+                        entity_id=expense_type.id,
+                        entity_data={
+                            "id": expense_type.id,
+                            "description": expense_type.description,
+                            "category": expense_type.category
+                        }
+                    )
+                )
+            else:
+                logs.append(f"Tipo de despesa não encontrado: {despesa.descricao}")
+                return DespesaExistenceCheck(
+                    descricao=despesa.descricao,
+                    categoria=despesa.categoria,
+                    status=EntityExistenceStatus(exists=False)
+                )
+                
+        except Exception as e:
+            logs.append(f"Erro ao verificar tipo de despesa: {str(e)}")
+            return DespesaExistenceCheck(
+                descricao=despesa.descricao,
+                categoria=despesa.categoria,
+                status=EntityExistenceStatus(exists=False)
+            )
+    
+    async def _create_fornecedor(
+        self, 
+        fornecedor: FornecedorExtraidoSchema, 
+        repo: PessoasRepository, 
+        logs: List[str],
+        transaction_id: str
+    ) -> FornecedorExistenceCheck:
+        """Cria um novo fornecedor no banco de dados."""
+        try:
+            pessoa_data = {
+                "tipo": "FORNECEDOR",
+                "razaosocial": fornecedor.razao_social,
+                "documento": fornecedor.cnpj,  # Usar CNPJ como documento
+                "status": "ativo"  # Definir status padrão
+            }
+            
+            pessoa = repo.create(pessoa_data)
+            logs.append(f"Fornecedor criado: {pessoa.razaosocial} (ID: {pessoa.idPessoas})")
+            
+            return FornecedorExistenceCheck(
+                documento=fornecedor.cnpj,  # Usar CNPJ como documento
+                razao_social=fornecedor.razao_social,
+                status=EntityExistenceStatus(
+                    exists=True,
+                    entity_id=pessoa.idPessoas,
+                    entity_data={
+                        "id": pessoa.idPessoas,
+                        "razao_social": pessoa.razaosocial,
+                        "documento": pessoa.documento,
+                        "tipo": pessoa.tipo
+                    },
+                    created=True
+                )
+            )
+            
+        except Exception as e:
+            error_msg = f"Erro ao criar fornecedor: {str(e)}"
+            logs.append(error_msg)
+            raise Exception(error_msg)
+    
+    async def _create_faturado(
+        self, 
+        faturado: FaturadoExtraidoSchema, 
+        repo: PessoasRepository, 
+        logs: List[str],
+        transaction_id: str
+    ) -> FaturadoExistenceCheck:
+        """Cria um novo faturado no banco de dados."""
+        try:
+            pessoa_data = {
+                "tipo": "FATURADO",
+                "razaosocial": faturado.nome_completo,
+                "documento": faturado.cpf,
+                "status": "ativo"  # Definir status padrão
+            }
+            
+            pessoa = repo.create(pessoa_data)
+            logs.append(f"Faturado criado: {pessoa.razaosocial} (ID: {pessoa.idPessoas})")
+            
+            return FaturadoExistenceCheck(
+                documento=faturado.cpf,
+                razao_social=faturado.nome_completo,
+                status=EntityExistenceStatus(
+                    exists=True,
+                    entity_id=pessoa.idPessoas,
+                    entity_data={
+                        "id": pessoa.idPessoas,
+                        "razao_social": pessoa.razaosocial,
+                        "documento": pessoa.documento,
+                        "tipo": pessoa.tipo
+                    },
+                    created=True
+                )
+            )
+            
+        except Exception as e:
+            error_msg = f"Erro ao criar faturado: {str(e)}"
+            logs.append(error_msg)
+            raise Exception(error_msg)
+    
+    async def _create_despesa(
+        self, 
+        despesa: ClassificacaoDespesaExtraidaSchema, 
+        repo: ExpenseTypeRepository, 
+        logs: List[str],
+        transaction_id: str
+    ) -> DespesaExistenceCheck:
+        """Cria um novo tipo de despesa no banco de dados."""
+        try:
+            expense_data = {
+                "description": despesa.descricao,
+                "category": despesa.categoria,
+                "notes": f"Criado automaticamente via IA - Confiança: {despesa.confianca}%"
+            }
+            
+            expense_type = repo.create(expense_data)
+            logs.append(f"Tipo de despesa criado: {expense_type.description} (ID: {expense_type.id})")
+            
+            return DespesaExistenceCheck(
+                descricao=despesa.descricao,
+                categoria=despesa.categoria,
+                status=EntityExistenceStatus(
+                    exists=True,
+                    entity_id=expense_type.id,
+                    entity_data={
+                        "id": expense_type.id,
+                        "description": expense_type.description,
+                        "category": expense_type.category
+                    },
+                    created=True
+                )
+            )
+            
+        except Exception as e:
+            error_msg = f"Erro ao criar tipo de despesa: {str(e)}"
+            logs.append(error_msg)
+            raise Exception(error_msg)
+    
+    async def _check_duplicate_invoice(
+        self,
+        dados_extraidos: DadosExtraidosPDFSchema,
+        repo: MovimentoContasRepository,
+        logs: List[str]
+    ) -> Optional[MovimentoContas]:
+        """Verifica se já existe movimento com esta nota fiscal e retorna o movimento existente."""
+        if dados_extraidos.numero_nota_fiscal:
+            existing_movimento = repo.find_by_nota_fiscal(dados_extraidos.numero_nota_fiscal)
+            if existing_movimento:
+                logs.append(f"Nota fiscal {dados_extraidos.numero_nota_fiscal} já processada - ID: {existing_movimento.idMovimentoContas}")
+                return existing_movimento
+        return None
+
+    async def _create_movimento_completo(
+        self,
+        dados_extraidos: DadosExtraidosPDFSchema,
+        fornecedor_check: FornecedorExistenceCheck,
+        faturado_check: FaturadoExistenceCheck,
+        repo: MovimentoContasRepository,
+        logs: List[str],
+        transaction_id: str
+    ) -> int:
+        """Cria o movimento completo no banco de dados."""
+        try:
+            # Verificar se já existe movimento com esta nota fiscal
+            existing_movimento = await self._check_duplicate_invoice(dados_extraidos, repo, logs)
+            if existing_movimento:
+                error_msg = f"Já existe um movimento com a nota fiscal {dados_extraidos.numero_nota_fiscal}"
+                logs.append(error_msg)
+                raise DuplicateInvoiceError(dados_extraidos.numero_nota_fiscal)
+            
+            movimento_data = {
+                "tipo": "DESPESA",
+                "numeronotafiscal": dados_extraidos.numero_nota_fiscal,
+                "dataemissao": dados_extraidos.data_emissao,
+                "descricao": f"NF {dados_extraidos.numero_nota_fiscal} - {fornecedor_check.razao_social}",
+                "status": "PROCESSADO",
+                "valortotal": float(dados_extraidos.valor_total),
+                "Pessoas_idFornecedorCliente": fornecedor_check.status.entity_id,
+                "Pessoas_idfaturado": faturado_check.status.entity_id
+            }
+            
+            movimento = repo.create(movimento_data)
+            logs.append(f"Movimento criado: NF {dados_extraidos.numero_nota_fiscal} (ID: {movimento.idMovimentoContas})")
+            
+            return movimento.idMovimentoContas
+            
+        except Exception as e:
+            error_msg = f"Erro ao criar movimento: {str(e)}"
+            logs.append(error_msg)
+            raise

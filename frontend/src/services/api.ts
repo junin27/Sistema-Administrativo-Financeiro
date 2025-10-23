@@ -9,7 +9,7 @@ import type { ApiResponse, ApiError } from '../types/entities';
 
 // Configuração base do axios
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -56,6 +56,10 @@ api.interceptors.response.use(
         case 404:
           toast.error('Recurso não encontrado');
           break;
+        case 409:
+          // Erro de conflito (duplicação)
+          toast.error(data.detail || 'Recurso já existe');
+          break;
         case 422:
           // Erros de validação
           if (data.errors && data.errors.length > 0) {
@@ -77,7 +81,7 @@ api.interceptors.response.use(
       toast.error('Erro inesperado');
     }
     
-    return Promise.reject(new Error(error.message || 'Unknown error'));
+    return Promise.reject(error);
   }
 );
 

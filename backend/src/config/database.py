@@ -108,14 +108,17 @@ def init_db() -> None:
     # Primeiro, criar o banco se não existir
     create_database_if_not_exists()
     
-    # Importar todos os modelos para que sejam registrados no metadata
-    from ..models import (
-        BaseModel, Supplier, Customer, BilledPerson,
-        RevenueType, ExpenseType, PayableAccount, ReceivableAccount,
-        PayableInstallment, ReceivableInstallment
-    )
+    # TEMPORÁRIO: Importar apenas modelos DDL para banco limpo
+    # from ..models import (
+    #     BaseModel, Supplier, Customer, BilledPerson,
+    #     RevenueType, ExpenseType, PayableAccount, ReceivableAccount,
+    #     PayableInstallment, ReceivableInstallment
+    # )
     
-    logger.info("Criando tabelas no banco de dados...")
+    # Importar apenas modelos DDL
+    from ..models.ddl_models import Pessoas, MovimentoContas
+    
+    logger.info("Criando apenas tabelas DDL no banco de dados...")
     # Depois criar as tabelas
     Base.metadata.create_all(bind=engine)
-    logger.info("Tabelas criadas com sucesso!")
+    logger.info("Tabelas DDL criadas com sucesso!")

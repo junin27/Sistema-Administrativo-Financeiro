@@ -30,6 +30,15 @@ CUSTOMER_REACTIVATED_SUCCESS = "Cliente reativado com sucesso"
 BILLED_PERSON_NOT_FOUND = "Pessoa faturada não encontrada"
 BILLED_PERSON_DOCUMENT_ID_EXISTS = "Já existe uma pessoa faturada cadastrada com este CPF"
 
+REVENUE_TYPE_NOT_FOUND = "Tipo de receita não encontrado"
+REVENUE_TYPE_DESCRIPTION_EXISTS = "Já existe um tipo de receita com esta descrição"
+REVENUE_TYPE_CREATED_SUCCESS = "Tipo de receita criado com sucesso"
+REVENUE_TYPE_UPDATED_SUCCESS = "Tipo de receita atualizado com sucesso"
+REVENUE_TYPE_DELETED_SUCCESS = "Tipo de receita inativado com sucesso"
+REVENUE_TYPE_REACTIVATED_SUCCESS = "Tipo de receita reativado com sucesso"
+
+INVALID_REVENUE_TYPE_DATA = "Dados do tipo de receita inválidos"
+
 # Mensagens de validação
 INVALID_TAX_ID_FORMAT = "CNPJ deve ter 14 dígitos"
 INVALID_DOCUMENT_ID_FORMAT = "CPF deve ter 11 dígitos"

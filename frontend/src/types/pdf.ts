@@ -50,14 +50,65 @@ export interface DadosExtraidosPDF {
   classificacoes_despesa: ClassificacaoDespesaExtraida[];
   confianca_geral: number; // 0 a 1
   observacoes_ia?: string;
+  quantidade_parcelas: number;
 }
 
 // Response do processamento
 export interface ProcessamentoPDFResponse {
   sucesso: boolean;
   dados_extraidos?: DadosExtraidosPDF;
+  verificacoes?: VerificacoesDados;
+  registros_criados?: RegistrosCriados;
   erro?: string;
   tempo_processamento: number; // segundos
+  // Propriedades para notas fiscais duplicadas
+  is_duplicate?: boolean;
+  duplicate_message?: string;
+  existing_movement_id?: number;
+}
+
+// Registros criados automaticamente
+export interface RegistrosCriados {
+  supplier_created?: boolean;
+  billed_person_created?: boolean;
+  expense_types_created?: Array<{
+    category: string;
+    description: string;
+  }>;
+  payable_account_created?: boolean;
+  installments_created?: boolean;
+}
+
+// Verificações de dados
+export interface VerificacoesDados {
+  supplier: VerificacaoFornecedor;
+  billed_person: VerificacaoFaturado;
+  expenses: VerificacaoClassificacao[];
+}
+
+export interface VerificacaoFornecedor {
+  exists: boolean;
+  message: string;
+  id?: string;
+  company_name?: string;
+  tax_id?: string;
+}
+
+export interface VerificacaoFaturado {
+  exists: boolean;
+  message: string;
+  id?: string;
+  full_name?: string;
+  document_id?: string;
+}
+
+export interface VerificacaoClassificacao {
+  exists: boolean;
+  message: string;
+  id?: string;
+  category?: string;
+  description?: string;
+  confidence?: number;
 }
 
 // Estados do processamento

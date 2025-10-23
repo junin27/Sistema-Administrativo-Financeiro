@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Aplicação Unificada (Frontend + Backend) com SQLite
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.unified
+    container_name: sistema_financeiro_app
+    environment:
+      # Usando SQLite (padrão da aplicação)
+      - DATABASE_URL=sqlite:///./data/sistema_financeiro.db
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+      - VITE_API_URL=http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"  # Frontend
+      - "8000:8000"  # Backend
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      - sqlite_data:/app/data  # Volume para persistir o banco SQLite
+      - /app/frontend/node_modules
+      - /app/backend/__pycache__
+    networks:
+      - sistema_financeiro_network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+volumes:
+  sqlite_data:
+    driver: local
+
+networks:
+  sistema_financeiro_network:
+    driver: bridge

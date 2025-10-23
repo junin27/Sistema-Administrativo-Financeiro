@@ -13,8 +13,10 @@ import time
 
 from .config.settings import settings
 from .config.database import init_db, get_db
-from .routers import suppliers, pdf, payable_accounts
+from .routers.ddl_routers import ddl_router
+from .routers.pdf_router import router as pdf_router
 from .core.constants import INTERNAL_SERVER_ERROR
+from .core.exceptions import DuplicateInvoiceError
 
 # Configurar logging
 logging.basicConfig(
@@ -75,6 +77,49 @@ async def log_requests(request: Request, call_next):
 
 
 # Exception handlers
+@app.exception_handler(DuplicateInvoiceError)
+async def duplicate_invoice_exception_handler(request: Request, exc: DuplicateInvoiceError):
+    """Handler para erros de nota fiscal duplicada."""
+    logger.warning(f"Duplicate invoice error: {exc.message} | Path: {request.url.path}")
+    
+    def serialize_data(data):
+        """Converte objetos não serializáveis para JSON."""
+        if isinstance(data, dict):
+            return {k: serialize_data(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [serialize_data(item) for item in data]
+        elif hasattr(data, 'isoformat'):  # date, datetime objects
+            return data.isoformat()
+        elif hasattr(data, '__dict__'):  # Pydantic models or custom objects
+            return serialize_data(data.__dict__)
+        else:
+            return data
+    
+    # Se há dados de verificação, incluir na resposta
+    response_content = {
+        "detail": exc.message,
+        "error_code": exc.error_code,
+        "invoice_number": exc.details.get("invoice_number")
+    }
+    
+    # Incluir dados de verificação se disponíveis
+    if "verification_data" in exc.details:
+        response_content["verification_data"] = serialize_data(exc.details["verification_data"])
+    
+    # Incluir dados extraídos se disponíveis
+    if "extracted_data" in exc.details:
+        response_content["extracted_data"] = serialize_data(exc.details["extracted_data"])
+    
+    # Incluir ID do movimento existente se disponível
+    if "existing_movement_id" in exc.details:
+        response_content["existing_movement_id"] = exc.details["existing_movement_id"]
+    
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content=response_content
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handler para erros de validação."""
@@ -140,10 +185,15 @@ async def shutdown_event():
     logger.info("Finalizando aplicação...")
 
 
-# Routers
-app.include_router(suppliers.router, prefix="/api/v1")
-app.include_router(pdf.router, prefix="/api/v1")
-app.include_router(payable_accounts.router, prefix="/api/v1")
+# Incluir routers
+app.include_router(ddl_router)
+app.include_router(pdf_router, prefix="/api/v1")
+# Routers removidos - sistema agora usa apenas DDL
+# app.include_router(suppliers.router, prefix="/api/v1")
+# app.include_router(customers.router, prefix="/api/v1")
+# app.include_router(revenue_types.router, prefix="/api/v1")
+# app.include_router(expense_types.router, prefix="/api/v1")
+# app.include_router(payable_accounts.router, prefix="/api/v1")
 
 
 # Health check

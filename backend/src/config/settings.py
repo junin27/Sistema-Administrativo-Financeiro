@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     """Configurações da aplicação com validação de tipos."""
     
     # Database Configuration
-    database_url: str = Field(default="postgresql://postgres:postgres@localhost:5432/sistema_financeiro", description="URL de conexão com PostgreSQL")
+    database_url: str = Field(default="sqlite:///./sistema_financeiro.db", description="URL de conexão com SQLite")
     
     # Google Gemini AI Configuration
-    gemini_api_key: str = Field(default="fake_key_for_development", description="Chave da API do Google Gemini")
+    gemini_api_key: str = Field(default="AIzaSyDxb-w07zunpX1hTy3ecDvLTQ3KJlX6VEg", description="Chave da API do Google Gemini")
     
     # Application Configuration
     app_name: str = Field(default="Sistema Administrativo Financeiro")
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     allowed_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"]
+        default=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000", "*"]
     )
     
     # File Upload Configuration

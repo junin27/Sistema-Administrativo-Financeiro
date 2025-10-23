@@ -25,6 +25,13 @@ import { ExpenseTypeForm } from './pages/classifications/ExpenseTypeForm';
 import { RevenueTypes } from './pages/classifications/RevenueTypes';
 import { RevenueTypeForm } from './pages/classifications/RevenueTypeForm';
 import { PdfProcessing } from './pages/pdf/PdfProcessing';
+import Pessoas from './pages/pessoas/Pessoas';
+import PessoaForm from './pages/pessoas/PessoaForm';
+import PessoaDetalhes from './pages/pessoas/PessoaDetalhes';
+import SupplierDetalhes from './pages/suppliers/SupplierDetalhes';
+import MovimentoDetalhes from './pages/movimentos/MovimentoDetalhes';
+import Movimentos from './pages/movimentos/Movimentos';
+import MovimentoForm from './pages/movimentos/MovimentoForm';
 
 // Configuração do React Query
 const queryClient = new QueryClient({
@@ -40,7 +47,12 @@ const queryClient = new QueryClient({
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <div className="min-h-screen bg-gray-50">
           <Layout>
             <Routes>
@@ -48,9 +60,10 @@ export function App() {
               <Route path="/" element={<Dashboard />} />
               
               {/* Fornecedores */}
-              <Route path="/fornecedores" element={<Suppliers />} />
-              <Route path="/fornecedores/novo" element={<SupplierForm />} />
-              <Route path="/fornecedores/:id/editar" element={<SupplierForm />} />
+            <Route path="/fornecedores" element={<Suppliers />} />
+            <Route path="/fornecedores/:id" element={<SupplierDetalhes />} />
+            <Route path="/fornecedores/novo" element={<SupplierForm />} />
+            <Route path="/fornecedores/:id/editar" element={<SupplierForm />} />
               
               {/* Clientes */}
               <Route path="/clientes" element={<Customers />} />
@@ -79,6 +92,18 @@ export function App() {
               
               {/* Processamento de PDF */}
               <Route path="/processar-pdf" element={<PdfProcessing />} />
+              
+              {/* Pessoas (Fornecedores/Clientes) */}
+              <Route path="/pessoas" element={<Pessoas />} />
+              <Route path="/pessoas/novo" element={<PessoaForm />} />
+              <Route path="/pessoas/:id" element={<PessoaDetalhes />} />
+              <Route path="/pessoas/:id/editar" element={<PessoaForm />} />
+              
+              {/* Movimentos de Contas */}
+              <Route path="/movimentos" element={<Movimentos />} />
+            <Route path="/movimentos/:id" element={<MovimentoDetalhes />} />
+            <Route path="/movimentos/novo" element={<MovimentoForm />} />
+            <Route path="/movimentos/:id/editar" element={<MovimentoForm />} />
             </Routes>
           </Layout>
           

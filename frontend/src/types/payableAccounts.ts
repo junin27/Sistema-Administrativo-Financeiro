@@ -65,3 +65,40 @@ export interface PayableAccountCreateResponse {
   payable_account_id?: string;
   validation_results: PayableAccountValidationResponse;
 }
+
+// Resposta completa de uma conta a pagar (para edição)
+export interface PayableAccountResponse {
+  id: string;
+  invoice_number?: string;
+  issue_date: string;
+  product_description: string;
+  total_amount: number;
+  supplier_id: string;
+  billed_person_id?: string;
+  supplier?: {
+    id: string;
+    company_name: string;
+    tax_id: string;
+  };
+  billed_person?: {
+    id: string;
+    full_name: string;
+    document_id: string;
+  };
+  expense?: {
+    id: string;
+    description: string;
+    category: ExpenseCategory;
+  };
+  installments: Array<{
+    id: string;
+    installment_number: number;
+    due_date: string;
+    installment_amount: number;
+    notes?: string;
+    payment_date?: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+  active: boolean;
+}

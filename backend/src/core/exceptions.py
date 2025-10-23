@@ -151,6 +151,28 @@ class PDFProcessingError(ApplicationError):
         )
 
 
+class DuplicateInvoiceError(ApplicationError):
+    """Exceção específica para nota fiscal duplicada."""
+    
+    def __init__(
+        self,
+        invoice_number: str,
+        message: Optional[str] = None,
+        **kwargs
+    ):
+        if not message:
+            message = f"Já existe um movimento com a nota fiscal {invoice_number}"
+        
+        details = kwargs.get('details', {})
+        details['invoice_number'] = invoice_number
+        
+        super().__init__(
+            message=message,
+            error_code="DUPLICATE_INVOICE_ERROR",
+            details=details
+        )
+
+
 class FileUploadError(ApplicationError):
     """Exceção para erros de upload de arquivo."""
     
