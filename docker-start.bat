@@ -6,11 +6,11 @@ echo ==========================================
 echo.
 
 echo Parando containers existentes...
-docker-compose down
+docker-compose -f docker-compose.unified.yml down
 
 echo.
 echo Construindo e iniciando aplicacao unificada...
-docker-compose up --build -d
+docker-compose -f docker-compose.unified.yml up --build -d
 
 echo.
 echo Aguardando inicializacao dos servicos...
@@ -25,7 +25,6 @@ echo Acesse:
 echo - Frontend: http://localhost:3000
 echo - Backend API: http://localhost:8000
 echo - Documentacao API: http://localhost:8000/docs
-echo - PgAdmin: http://localhost:5050
 echo.
 echo Para parar a aplicacao, pressione Ctrl+C
 echo Pressione qualquer tecla para continuar...

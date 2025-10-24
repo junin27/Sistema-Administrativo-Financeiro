@@ -7,7 +7,7 @@ services:
     container_name: sistema_financeiro_app
     environment:
       # Usando SQLite (padrão da aplicação)
-      - DATABASE_URL=sqlite:///./data/sistema_financeiro.db
+      - DATABASE_URL=sqlite:////app/backend/sistema_financeiro.db
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - DEBUG=true
       - LOG_LEVEL=INFO

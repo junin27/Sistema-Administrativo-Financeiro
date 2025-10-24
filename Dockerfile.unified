@@ -38,6 +38,13 @@ COPY backend/ ./backend/
 # Copiar código do frontend
 COPY frontend/ ./frontend/
 
+# Copiar script de inicialização do backend
+COPY init-backend.sh /app/
+RUN chmod +x /app/init-backend.sh
+
+# Criar diretório para banco SQLite com permissões corretas
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 # Instalar supervisor para gerenciar múltiplos processos
 RUN pip install supervisor
 
@@ -51,8 +58,8 @@ logfile=/var/log/supervisor/supervisord.log
 pidfile=/var/run/supervisord.pid
 
 [program:backend]
-command=uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-directory=/app/backend
+command=/app/init-backend.sh
+directory=/app
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/supervisor/backend.err.log
