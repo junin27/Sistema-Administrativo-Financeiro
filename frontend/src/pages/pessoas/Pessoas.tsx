@@ -11,16 +11,17 @@ const Pessoas: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<PessoaFilter>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   const pageSize = 10;
 
-  const loadPessoas = async (page: number = 1, currentFilters: PessoaFilter = {}) => {
+  const loadPessoas = async (page: number = 1, currentFilters: PessoaFilter = {}, includeInactive: boolean = false) => {
     try {
       setLoading(true);
       const response = await pessoasService.getAll({
         page,
         size: pageSize,
-        filters: currentFilters
+        filters: { ...currentFilters, include_deleted: includeInactive }
       });
       
       setPessoas(response.items);
@@ -35,8 +36,8 @@ const Pessoas: React.FC = () => {
   };
 
   useEffect(() => {
-    loadPessoas();
-  }, []);
+    loadPessoas(1, filters, showInactive);
+  }, [showInactive]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
     const newFilters = { ...filters, [field]: value || undefined };
@@ -44,12 +45,12 @@ const Pessoas: React.FC = () => {
   };
 
   const applyFilters = () => {
-    loadPessoas(1, filters);
+    loadPessoas(1, filters, showInactive);
   };
 
   const clearFilters = () => {
     setFilters({});
-    loadPessoas(1, {});
+    loadPessoas(1, {}, showInactive);
   };
 
   const handleDelete = async (id: number) => {
@@ -85,13 +86,31 @@ const Pessoas: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Pessoas</h1>
-        <Link
-          to="/pessoas/novo"
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Nova Pessoa
-        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Pessoas</h1>
+          <p className="text-gray-600 mt-1">Total: {total} pessoa(s)</p>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Toggle para Inativos */}
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">
+              Mostrar Inativos
+            </span>
+          </label>
+          
+          <Link
+            to="/pessoas/novo"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Nova Pessoa
+          </Link>
+        </div>
       </div>
 
       {error && (

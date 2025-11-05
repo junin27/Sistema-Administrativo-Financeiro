@@ -3,36 +3,16 @@ Módulo de modelos do sistema.
 Centraliza a importação de todos os modelos SQLAlchemy.
 """
 
-# TEMPORÁRIO: Comentando importações antigas para banco limpo
-# from .base import BaseModel
-# from .people import Supplier, Customer, BilledPerson
-# from .classifications import RevenueType, ExpenseType
-# from .accounts import (
-#     PayableAccount, ReceivableAccount, 
-#     PayableInstallment, ReceivableInstallment,
-#     payable_account_expense_association,
-#     receivable_account_revenue_association
-# )
-
-# Importar apenas modelos DDL
+# Importar modelos DDL seguindo o diagrama
 from .ddl_models import Pessoas, MovimentoContas
+from .parcelas_models import ParcelasContas
+from .classificacao_models import Classificacao, movimento_contas_has_classificacao
 
 __all__ = [
-    # TEMPORÁRIO: Comentando modelos antigos
-    # "BaseModel",
-    # "Supplier", 
-    # "Customer", 
-    # "BilledPerson",
-    # "RevenueType", 
-    # "ExpenseType",
-    # "PayableAccount", 
-    # "ReceivableAccount",
-    # "PayableInstallment", 
-    # "ReceivableInstallment",
-    # "payable_account_expense_association",
-    # "receivable_account_revenue_association",
-    
-    # Apenas modelos DDL
+    # Modelos DDL principais
     "Pessoas",
-    "MovimentoContas"
+    "MovimentoContas",
+    "ParcelasContas",
+    "Classificacao",
+    "movimento_contas_has_classificacao",
 ]

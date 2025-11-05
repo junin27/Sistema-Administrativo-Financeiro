@@ -122,7 +122,7 @@ class ExternalServiceError(ApplicationError):
     ):
         details = {"service_name": service_name}
         if status_code:
-            details["status_code"] = status_code
+            details["status_code"] = str(status_code)
         
         super().__init__(
             message=f"{service_name}: {message}",

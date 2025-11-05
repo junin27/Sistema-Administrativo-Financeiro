@@ -72,8 +72,11 @@ async def list_pessoas(
         # Para listagem geral, contar total
         total = len(repo.get_all())
     
+    # Converter models para schemas
+    items_response = [PessoasResponse.model_validate(item) for item in items]
+    
     return PessoasListResponse(
-        items=items,
+        items=items_response,
         total=total,
         page=page,
         size=size,
@@ -134,7 +137,10 @@ async def delete_pessoa(
     pessoa_id: int,
     db: Session = Depends(get_db)
 ):
-    """Remove uma pessoa."""
+    """
+    Remove uma pessoa FISICAMENTE.
+    ATENÇÃO: Viola regra de negócio - use POST /inativar ao invés.
+    """
     repo = PessoasRepository(db)
     
     if not repo.delete(pessoa_id):
@@ -142,6 +148,85 @@ async def delete_pessoa(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pessoa não encontrada"
         )
+
+
+@pessoas_router.post("/{pessoa_id}/inativar", response_model=PessoasResponse)
+async def inativar_pessoa(
+    pessoa_id: int,
+    db: Session = Depends(get_db)
+):
+    """INATIVA uma pessoa (soft delete). Define deleted_at com timestamp atual."""
+    repo = PessoasRepository(db)
+    
+    pessoa = repo.get_by_id(pessoa_id)
+    if not pessoa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pessoa não encontrada"
+        )
+    
+    # Verificar se já está inativada
+    if pessoa.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pessoa já está inativada"
+        )
+    
+    inativada = repo.inactivate(pessoa_id)
+    return inativada
+
+
+@pessoas_router.post("/{pessoa_id}/reativar", response_model=PessoasResponse)
+async def reativar_pessoa(
+    pessoa_id: int,
+    db: Session = Depends(get_db)
+):
+    """REATIVA uma pessoa inativada. Remove deleted_at."""
+    repo = PessoasRepository(db)
+    
+    # Buscar incluindo inativadas
+    pessoa = repo.get_by_id(pessoa_id, include_deleted=True)
+    if not pessoa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pessoa não encontrada"
+        )
+    
+    # Verificar se está inativada
+    if pessoa.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Pessoa já está ativa"
+        )
+    
+    reativada = repo.reactivate(pessoa_id)
+    return reativada
+
+
+@pessoas_router.get("/inativos", response_model=PessoasListResponse)
+async def listar_pessoas_inativas(
+    page: int = Query(1, ge=1, description="Número da página"),
+    size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
+    db: Session = Depends(get_db)
+):
+    """Lista apenas pessoas inativadas (soft deleted)."""
+    repo = PessoasRepository(db)
+    skip = (page - 1) * size
+    
+    items = repo.find_inactive()
+    total = len(items)
+    items = items[skip:skip + size]
+    
+    # Converter models para schemas
+    items_response = [PessoasResponse.model_validate(item) for item in items]
+    
+    return PessoasListResponse(
+        items=items_response,
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total > 0 else 1
+    )
 
 
 # Router para MovimentoContas
@@ -242,8 +327,11 @@ async def list_movimentos(
     else:
         total = len(repo.get_all())
     
+    # Converter models para schemas
+    items_response = [MovimentoContasResponse.model_validate(item) for item in items]
+    
     return MovimentoContasListResponse(
-        items=items,
+        items=items_response,
         total=total,
         page=page,
         size=size,
@@ -311,7 +399,10 @@ async def delete_movimento(
     movimento_id: int,
     db: Session = Depends(get_db)
 ):
-    """Remove um movimento."""
+    """
+    Remove um movimento FISICAMENTE.
+    ATENÇÃO: Viola regra de negócio - use POST /inativar ao invés.
+    """
     repo = MovimentoContasRepository(db)
     
     if not repo.delete(movimento_id):
@@ -319,6 +410,85 @@ async def delete_movimento(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Movimento não encontrado"
         )
+
+
+@movimento_router.post("/{movimento_id}/inativar", response_model=MovimentoContasResponse)
+async def inativar_movimento(
+    movimento_id: int,
+    db: Session = Depends(get_db)
+):
+    """INATIVA um movimento (soft delete). Define deleted_at com timestamp atual."""
+    repo = MovimentoContasRepository(db)
+    
+    movimento = repo.get_by_id(movimento_id)
+    if not movimento:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimento não encontrado"
+        )
+    
+    # Verificar se já está inativado
+    if movimento.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Movimento já está inativado"
+        )
+    
+    inativado = repo.inactivate(movimento_id)
+    return inativado
+
+
+@movimento_router.post("/{movimento_id}/reativar", response_model=MovimentoContasResponse)
+async def reativar_movimento(
+    movimento_id: int,
+    db: Session = Depends(get_db)
+):
+    """REATIVA um movimento inativado. Remove deleted_at."""
+    repo = MovimentoContasRepository(db)
+    
+    # Buscar incluindo inativados
+    movimento = repo.get_by_id(movimento_id, include_deleted=True)
+    if not movimento:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movimento não encontrado"
+        )
+    
+    # Verificar se está inativado
+    if movimento.deleted_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Movimento já está ativo"
+        )
+    
+    reativado = repo.reactivate(movimento_id)
+    return reativado
+
+
+@movimento_router.get("/inativos/list", response_model=MovimentoContasListResponse)
+async def listar_movimentos_inativos(
+    page: int = Query(1, ge=1, description="Número da página"),
+    size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
+    db: Session = Depends(get_db)
+):
+    """Lista apenas movimentos inativados (soft deleted)."""
+    repo = MovimentoContasRepository(db)
+    skip = (page - 1) * size
+    
+    items = repo.find_inactive()
+    total = len(items)
+    items = items[skip:skip + size]
+    
+    # Converter models para schemas
+    items_response = [MovimentoContasResponse.model_validate(item) for item in items]
+    
+    return MovimentoContasListResponse(
+        items=items_response,
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total > 0 else 1
+    )
 
 
 # Router principal que combina todos

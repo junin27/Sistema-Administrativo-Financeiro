@@ -1,0 +1,81 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sistema_financeiro_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sistema_financeiro
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "54320:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sistema_financeiro_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_backend
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/sistema_financeiro
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    networks:
+      - sistema_financeiro_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo '⏳ Aguardando PostgreSQL...' &&
+        sleep 5 &&
+        echo '🔧 Inicializando banco de dados...' &&
+        python -c 'from src.config.database import init_db; init_db()' &&
+        echo '🚀 Iniciando servidor...' &&
+        uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_frontend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - sistema_financeiro_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  sistema_financeiro_network:
+    driver: bridge

@@ -10,13 +10,13 @@ import {
   FileText,
   Eye
 } from 'lucide-react';
-import movimentosService, { MovimentoConta, MovimentoContaFilter, MovimentoResumo } from '../../services/movimentosService';
+import movimentosService, { MovimentoConta, MovimentoContaFilter } from '../../services/movimentosService';
 import pessoasService, { Pessoa } from '../../services/pessoasService';
 
 const Movimentos: React.FC = () => {
   const [movimentos, setMovimentos] = useState<MovimentoConta[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
-  const [resumo, setResumo] = useState<MovimentoResumo[]>([]);
+  // const [resumo, setResumo] = useState<MovimentoResumo[]>([]); // TODO: Implementar resumo de movimentos
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,17 +24,18 @@ const Movimentos: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<MovimentoContaFilter>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   const pageSize = 10;
 
-  const loadMovimentos = async (page: number = 1, currentFilters: MovimentoContaFilter = {}) => {
+  const loadMovimentos = async (page: number = 1, currentFilters: MovimentoContaFilter = {}, includeInactive: boolean = false) => {
     try {
       setLoading(true);
-      const [movimentosResponse, resumoResponse, pessoasResponse] = await Promise.all([
+      const [movimentosResponse, _resumoResponse, pessoasResponse] = await Promise.all([
         movimentosService.getAll({
           page,
           size: pageSize,
-          filters: currentFilters
+          filters: { ...currentFilters, include_deleted: includeInactive }
         }),
         movimentosService.getResumo(),
         pessoasService.getAll({ page: 1, size: 1000 })
@@ -44,7 +45,7 @@ const Movimentos: React.FC = () => {
       setTotalPages(movimentosResponse.pages);
       setTotal(movimentosResponse.total);
       setCurrentPage(page);
-      setResumo(resumoResponse);
+      // setResumo(resumoResponse); // TODO: Implementar exibição de resumo
       setPessoas(pessoasResponse.items);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao carregar movimentos');
@@ -54,8 +55,8 @@ const Movimentos: React.FC = () => {
   };
 
   useEffect(() => {
-    loadMovimentos();
-  }, []);
+    loadMovimentos(1, filters, showInactive);
+  }, [showInactive]);
 
   const handleFilterChange = (field: keyof MovimentoContaFilter, value: string | number) => {
     const newFilters = { ...filters, [field]: value || undefined };
@@ -63,19 +64,19 @@ const Movimentos: React.FC = () => {
   };
 
   const applyFilters = () => {
-    loadMovimentos(1, filters);
+    loadMovimentos(1, filters, showInactive);
   };
 
   const clearFilters = () => {
     setFilters({});
-    loadMovimentos(1, {});
+    loadMovimentos(1, {}, showInactive);
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir este movimento?')) {
       try {
         await movimentosService.delete(id);
-        loadMovimentos(currentPage, filters);
+        loadMovimentos(currentPage, filters, showInactive);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Erro ao excluir movimento');
       }
@@ -85,7 +86,7 @@ const Movimentos: React.FC = () => {
   const handleMarcarComoPago = async (id: number) => {
     try {
       await movimentosService.marcarComoPago(id);
-      loadMovimentos(currentPage, filters);
+      loadMovimentos(currentPage, filters, showInactive);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao marcar como pago');
     }
@@ -95,7 +96,7 @@ const Movimentos: React.FC = () => {
     if (window.confirm('Tem certeza que deseja cancelar este movimento?')) {
       try {
         await movimentosService.cancelar(id);
-        loadMovimentos(currentPage, filters);
+        loadMovimentos(currentPage, filters, showInactive);
       } catch (err: any) {
         setError(err.response?.data?.detail || 'Erro ao cancelar movimento');
       }
@@ -138,14 +139,32 @@ const Movimentos: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Movimentos de Contas</h1>
-        <Link
-          to="/movimentos/novo"
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Movimento
-        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Movimentos de Contas</h1>
+          <p className="text-gray-600 mt-1">Total: {total} movimento(s)</p>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Toggle para Inativos */}
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="ml-2 text-sm font-medium text-gray-700">
+              Mostrar Inativos
+            </span>
+          </label>
+          
+          <Link
+            to="/movimentos/novo"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Movimento
+          </Link>
+        </div>
       </div>
 
       {error && (

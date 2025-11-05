@@ -42,6 +42,7 @@ export interface PessoaFilter {
   razao_social?: string;
   nome_fantasia?: string;
   status?: 'ativo' | 'inativo';
+  include_deleted?: boolean;
 }
 
 export interface PessoasListResponse {

@@ -17,7 +17,8 @@ import {
   TrendingUp,
   TrendingDown,
   UserCheck,
-  ArrowUpDown
+  ArrowUpDown,
+  Calendar
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -36,6 +37,7 @@ const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Pessoas', href: '/pessoas', icon: UserCheck },
   { name: 'Movimentos', href: '/movimentos', icon: ArrowUpDown },
+  { name: 'Parcelas', href: '/parcelas', icon: Calendar },
   { name: 'Fornecedores', href: '/fornecedores', icon: Building2 },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Contas a Pagar', href: '/contas-pagar', icon: TrendingDown },

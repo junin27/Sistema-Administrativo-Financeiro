@@ -12,10 +12,13 @@ class Settings(BaseSettings):
     """Configurações da aplicação com validação de tipos."""
     
     # Database Configuration
-    database_url: str = Field(default="sqlite:////app/backend/sistema_financeiro.db", description="URL de conexão com SQLite")
+    database_url: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/sistema_financeiro", 
+        description="URL de conexão com PostgreSQL"
+    )
     
     # Google Gemini AI Configuration
-    gemini_api_key: str = Field(default="AIzaSyDxb-w07zunpX1hTy3ecDvLTQ3KJlX6VEg", description="Chave da API do Google Gemini")
+    gemini_api_key: str = Field(default="AIzaSyCXSU2TYbAer2tVkMWK4ksmQcs2VYceoaQ", description="Chave da API do Google Gemini")
     
     # Application Configuration
     app_name: str = Field(default="Sistema Administrativo Financeiro")

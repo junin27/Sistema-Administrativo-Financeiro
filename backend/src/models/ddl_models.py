@@ -3,8 +3,9 @@ Modelos implementados seguindo exatamente o DDL fornecido.
 Mantém compatibilidade com a estrutura original especificada.
 """
 
-from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Index, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from ..config.database import Base
 
@@ -13,6 +14,8 @@ class Pessoas(Base):
     """
     Modelo para a tabela Pessoas seguindo o DDL fornecido.
     Armazena informações de clientes, fornecedores ou outras entidades.
+    
+    Regra de Negócio: Soft Delete - Registros nunca são excluídos fisicamente.
     """
     __tablename__ = "pessoas"
     
@@ -22,6 +25,12 @@ class Pessoas(Base):
     fantasia = Column(String(150), nullable=True)
     documento = Column(String(45), nullable=True)
     status = Column(String(45), nullable=True)
+    
+    # Soft Delete
+    deleted_at = Column(DateTime(timezone=True), nullable=True, 
+                       comment="Data de inativação (soft delete)")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relacionamentos com MovimentoContas
     movimento_contas_fornecedor = relationship(
@@ -44,6 +53,11 @@ class MovimentoContas(Base):
     """
     Modelo para a tabela MovimentoContas seguindo o DDL fornecido.
     Registra transações (contas a pagar ou receber).
+    
+    Regra de Negócio: 
+    - Soft Delete - Registros nunca são excluídos fisicamente
+    - Pode ter múltiplas parcelas (relacionamento one-to-many)
+    - Pode ter múltiplas classificações (relacionamento many-to-many)
     """
     __tablename__ = "movimento_contas"
     
@@ -54,6 +68,12 @@ class MovimentoContas(Base):
     descricao = Column(String(300), nullable=True)
     status = Column(String(45), nullable=True)
     valortotal = Column(Numeric(10, 2), nullable=True)
+    
+    # Soft Delete
+    deleted_at = Column(DateTime(timezone=True), nullable=True, 
+                       comment="Data de inativação (soft delete)")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Chaves estrangeiras
     Pessoas_idFornecedorCliente = Column(Integer, ForeignKey('pessoas.idPessoas'), nullable=False)
@@ -70,6 +90,20 @@ class MovimentoContas(Base):
         "Pessoas",
         foreign_keys=[Pessoas_idfaturado],
         back_populates="movimento_contas_faturado"
+    )
+    
+    # Relacionamento one-to-many com Parcelas
+    parcelas = relationship(
+        "ParcelasContas",
+        back_populates="movimento",
+        cascade="all, delete-orphan"
+    )
+    
+    # Relacionamento many-to-many com Classificação
+    classificacoes = relationship(
+        "Classificacao",
+        secondary="movimento_contas_has_classificacao",
+        back_populates="movimentos"
     )
     
     # Índices para performance (seguindo o DDL)

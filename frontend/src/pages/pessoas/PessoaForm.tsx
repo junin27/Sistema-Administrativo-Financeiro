@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import pessoasService, { Pessoa, PessoaCreate, PessoaUpdate } from '../../services/pessoasService';
+import pessoasService, { PessoaCreate, PessoaUpdate } from '../../services/pessoasService';
 
 const PessoaForm: React.FC = () => {
   const navigate = useNavigate();

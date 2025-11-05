@@ -36,6 +36,7 @@ export interface SupplierFilter {
   tax_id?: string;
   active?: boolean;
   search?: string;
+  include_deleted?: boolean;
 }
 
 // Customer (Cliente)
@@ -59,6 +60,7 @@ export interface CustomerFilter {
   document_id?: string;
   active?: boolean;
   search?: string;
+  include_deleted?: boolean;
 }
 
 // BilledPerson (Faturado)
@@ -140,6 +142,25 @@ export interface ExpenseTypeUpdate {
   notes?: string;
 }
 
+// Installments (Parcelas)
+export interface PayableInstallment extends BaseEntity {
+  payable_account_id: string;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  payment_date?: string;
+  status: 'PENDENTE' | 'PAGA' | 'VENCIDA' | 'CANCELADA';
+}
+
+export interface ReceivableInstallment extends BaseEntity {
+  receivable_account_id: string;
+  installment_number: number;
+  amount: number;
+  due_date: string;
+  payment_date?: string;
+  status: 'PENDENTE' | 'PAGA' | 'VENCIDA' | 'CANCELADA';
+}
+
 // PayableAccount (Conta a Pagar)
 export interface PayableAccount extends BaseEntity {
   supplier_id: string;
@@ -216,32 +237,62 @@ export interface ReceivableAccountUpdate {
   installments_count?: number;
 }
 
-// PayableInstallment (Parcela de Conta a Pagar)
-export interface PayableInstallment extends BaseEntity {
-  payable_account_id: string;
-  installment_number: number;
-  due_date: string;
-  amount: number;
-  paid_date?: string;
-  paid_amount?: number;
-  discount?: number;
-  interest?: number;
-  notes?: string;
-  is_paid: boolean;
+// Parcela (Installment) - conforme backend parcelas_contas
+export type ParcelaStatus = 'PENDENTE' | 'PAGA' | 'VENCIDA' | 'CANCELADA';
+
+export interface Parcela {
+  idParcelasContas: number;
+  MovimentoContas_idMovimentoContas: number;
+  identificacao: string;
+  numero_parcela: number;
+  valorparcela: number;
+  datavencimento: string;
+  datapagamento?: string;
+  status: ParcelaStatus;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// ReceivableInstallment (Parcela de Conta a Receber)
-export interface ReceivableInstallment extends BaseEntity {
-  receivable_account_id: string;
-  installment_number: number;
-  due_date: string;
-  amount: number;
-  received_date?: string;
-  received_amount?: number;
-  discount?: number;
-  interest?: number;
-  notes?: string;
-  is_received: boolean;
+export interface ParcelaCreate {
+  MovimentoContas_idMovimentoContas: number;
+  identificacao: string;
+  numero_parcela: number;
+  valorparcela: number;
+  datavencimento: string;
+  datapagamento?: string;
+  status?: ParcelaStatus;
+}
+
+export interface ParcelaUpdate {
+  identificacao?: string;
+  numero_parcela?: number;
+  valorparcela?: number;
+  datavencimento?: string;
+  datapagamento?: string;
+  status?: ParcelaStatus;
+}
+
+// Classificacao (conforme backend)
+export type ClassificacaoTipo = 'RECEITA' | 'DESPESA';
+
+export interface Classificacao {
+  idClassificacao: number;
+  tipo: ClassificacaoTipo;
+  descricao: string;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassificacaoCreate {
+  tipo: ClassificacaoTipo;
+  descricao: string;
+}
+
+export interface ClassificacaoUpdate {
+  tipo?: ClassificacaoTipo;
+  descricao?: string;
 }
 
 // Paginação

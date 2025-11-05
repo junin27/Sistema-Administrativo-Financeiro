@@ -10,10 +10,20 @@ from decimal import Decimal
 from datetime import datetime, date
 import re
 
-import google.generativeai as genai
-import PyPDF2
+try:
+    import google.generativeai as genai  # type: ignore
+    import PyPDF2  # type: ignore
+    PDF_LIBS_AVAILABLE = True
+    print(f"[PDF_PROCESSING] Bibliotecas PDF carregadas com sucesso! PDF_LIBS_AVAILABLE={PDF_LIBS_AVAILABLE}")
+except ImportError as e:
+    PDF_LIBS_AVAILABLE = False
+    genai = None  # type: ignore
+    PyPDF2 = None  # type: ignore
+    print(f"[PDF_PROCESSING] Erro ao carregar bibliotecas PDF: {e}. PDF_LIBS_AVAILABLE={PDF_LIBS_AVAILABLE}")
+
 from io import BytesIO
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi import HTTPException
 
 from ..config.settings import settings
@@ -34,9 +44,7 @@ from ..schemas.post_processing_schemas import (
     TransactionLog
 )
 from ..repositories.ddl_repositories import PessoasRepository, MovimentoContasRepository
-from ..repositories.expense_type_repository import ExpenseTypeRepository
 from ..models.ddl_models import Pessoas, MovimentoContas
-from ..models.expense_type_models import ExpenseType
 from ..core.exceptions import DuplicateInvoiceError
 
 # Configurar logging
@@ -51,14 +59,22 @@ class PDFProcessingService:
     
     def __init__(self):
         """Inicializa o service configurando a API do Gemini."""
-        self._configure_gemini()
-        self._setup_classification_rules()
+        if not PDF_LIBS_AVAILABLE:
+            logger.warning("Bibliotecas PDF/IA não disponíveis. Funcionalidade de processamento de PDF desabilitada.")
+            self.gemini_configured = False
+        else:
+            self._configure_gemini()
+            self._setup_classification_rules()
     
     def _configure_gemini(self) -> None:
         """Configura a API do Google Gemini."""
+        if not PDF_LIBS_AVAILABLE:
+            self.gemini_configured = False
+            return
+            
         try:
-            genai.configure(api_key=settings.gemini_api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            genai.configure(api_key=settings.gemini_api_key)  # type: ignore
+            self.model = genai.GenerativeModel('gemini-2.5-flash')  # type: ignore
             logger.info("Google Gemini AI configurado com sucesso")
         except Exception as e:
             logger.error(f"Erro ao configurar Gemini AI: {e}")
@@ -187,7 +203,7 @@ class PDFProcessingService:
         """Extrai texto do arquivo PDF."""
         try:
             pdf_file = BytesIO(pdf_content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)  # type: ignore
             
             text = ""
             for page_num, page in enumerate(pdf_reader.pages):
@@ -237,7 +253,8 @@ class PDFProcessingService:
             return ProcessamentoPDFResponseSchema(
                 sucesso=True,
                 dados_extraidos=dados_extraidos,
-                tempo_processamento=tempo_processamento
+                tempo_processamento=tempo_processamento,
+                erro=None
             )
             
         except Exception as e:
@@ -247,7 +264,8 @@ class PDFProcessingService:
             return ProcessamentoPDFResponseSchema(
                 sucesso=False,
                 erro=str(e),
-                tempo_processamento=tempo_processamento
+                tempo_processamento=tempo_processamento,
+                dados_extraidos=None
             )
     
     async def _process_with_gemini(self, pdf_text: str) -> DadosExtraidosPDFSchema:
@@ -667,10 +685,25 @@ class PDFProcessingService:
                 error_msg = extraction_result.erro or "Falha na extração de dados do PDF"
                 return PostProcessingResult(
                     success=False,
+                    fornecedor=FornecedorExistenceCheck(
+                        documento="",
+                        razao_social="",
+                        status=EntityExistenceStatus(exists=False, entity_id=None, entity_data=None, created=False)
+                    ),
+                    faturado=FaturadoExistenceCheck(
+                        documento="",
+                        razao_social="",
+                        status=EntityExistenceStatus(exists=False, entity_id=None, entity_data=None, created=False)
+                    ),
+                    despesas=[],
+                    extracted_data=None,
+                    movimento_criado=False,
+                    movimento_id=None,
                     transaction_id=transaction_id,
                     processing_time=time.time() - start_time,
                     error_message=error_msg,
-                    logs=logs + [f"Erro na extração: {error_msg}"]
+                    logs=logs + [f"Erro na extração: {error_msg}"],
+                    errors=[error_msg]
                 )
             
             dados_extraidos = extraction_result.dados_extraidos
@@ -686,10 +719,25 @@ class PDFProcessingService:
             logger.error(error_msg)
             return PostProcessingResult(
                 success=False,
+                fornecedor=FornecedorExistenceCheck(
+                    documento="",
+                    razao_social="",
+                    status=EntityExistenceStatus(exists=False, entity_id=None, entity_data=None, created=False)
+                ),
+                faturado=FaturadoExistenceCheck(
+                    documento="",
+                    razao_social="",
+                    status=EntityExistenceStatus(exists=False, entity_id=None, entity_data=None, created=False)
+                ),
+                despesas=[],
+                extracted_data=None,
+                movimento_criado=False,
+                movimento_id=None,
                 transaction_id=transaction_id,
                 processing_time=time.time() - start_time,
                 error_message=error_msg,
-                logs=logs + [error_msg]
+                logs=logs + [error_msg],
+                errors=[error_msg]
             )
     
     async def _execute_post_processing(
@@ -713,7 +761,6 @@ class PDFProcessingService:
             # Inicializar repositórios
             pessoas_repo = PessoasRepository(db)
             movimento_repo = MovimentoContasRepository(db)
-            expense_repo = ExpenseTypeRepository(db)
             
             # Verificar se é nota fiscal duplicada ANTES de fazer outras verificações
             existing_movimento = await self._check_duplicate_invoice(dados_extraidos, movimento_repo, logs)
@@ -725,16 +772,15 @@ class PDFProcessingService:
             
             # Verificar existência do faturado
             faturado_check = await self._check_faturado_existence(
-                dados_extraidos.faturado, pessoas_repo, logs
+                dados_extraidos.faturado if dados_extraidos.faturado else FaturadoExtraidoSchema(
+                    cpf="", nome_completo="Não informado"
+                ),
+                pessoas_repo,
+                logs
             )
             
-            # Verificar existência das despesas
+            # Despesas serão tratadas via Classificacao, não ExpenseType
             despesas_check = []
-            for despesa in dados_extraidos.classificacoes_despesa:
-                despesa_check = await self._check_despesa_existence(
-                    despesa, expense_repo, logs
-                )
-                despesas_check.append(despesa_check)
             
             # Se é nota fiscal duplicada, retornar informações sem criar movimento
             if existing_movimento:
@@ -743,8 +789,8 @@ class PDFProcessingService:
                 
                 # Criar uma exceção customizada com as informações processadas
                 duplicate_error = DuplicateInvoiceError(
-                    dados_extraidos.numero_nota_fiscal,
-                    message=f"Nota fiscal {dados_extraidos.numero_nota_fiscal} já foi processada anteriormente",
+                    dados_extraidos.numero_nota_fiscal or "SEM_NUMERO",
+                    message=f"Nota fiscal {dados_extraidos.numero_nota_fiscal or 'SEM_NUMERO'} já foi processada anteriormente",
                     details={
                         "invoice_number": dados_extraidos.numero_nota_fiscal,
                         "existing_movement_id": existing_movimento.idMovimentoContas,
@@ -753,15 +799,13 @@ class PDFProcessingService:
                                 "exists": fornecedor_check.status.exists,
                                 "id": fornecedor_check.status.entity_id,
                                 "company_name": fornecedor_check.razao_social,
-                                "message": fornecedor_check.status.message if hasattr(fornecedor_check.status, 'message') else 
-                                          ("Fornecedor já existe no sistema" if fornecedor_check.status.exists else "Fornecedor não existe no sistema")
+                                "message": "Fornecedor já existe no sistema" if fornecedor_check.status.exists else "Fornecedor não existe no sistema"
                             },
                             "billed_person": {
                                 "exists": faturado_check.status.exists,
                                 "id": faturado_check.status.entity_id,
                                 "full_name": faturado_check.razao_social,
-                                "message": faturado_check.status.message if hasattr(faturado_check.status, 'message') else
-                                          ("Pessoa faturada já existe no sistema" if faturado_check.status.exists else "Pessoa faturada não existe no sistema")
+                                "message": "Pessoa faturada já existe no sistema" if faturado_check.status.exists else "Pessoa faturada não existe no sistema"
                             },
                             "expense_types": [
                                 {
@@ -769,8 +813,7 @@ class PDFProcessingService:
                                     "id": despesa.status.entity_id,
                                     "description": despesa.descricao,
                                     "category": despesa.categoria,
-                                    "message": despesa.status.message if hasattr(despesa.status, 'message') else
-                                              ("Tipo de despesa já existe no sistema" if despesa.status.exists else "Tipo de despesa não existe no sistema")
+                                    "message": "Tipo de despesa já existe no sistema" if despesa.status.exists else "Tipo de despesa não existe no sistema"
                                 }
                                 for despesa in despesas_check
                             ]
@@ -797,21 +840,21 @@ class PDFProcessingService:
                 # Criar faturado se não existir
                 if not faturado_check.status.exists:
                     faturado_check = await self._create_faturado(
-                        dados_extraidos.faturado, pessoas_repo, logs, transaction_id
+                        dados_extraidos.faturado if dados_extraidos.faturado else FaturadoExtraidoSchema(
+                            cpf="", nome_completo="Não informado"
+                        ),
+                        pessoas_repo,
+                        logs,
+                        transaction_id
                     )
                 
-                # Criar tipos de despesa se não existirem
-                for i, despesa_check in enumerate(despesas_check):
-                    if not despesa_check.status.exists:
-                        despesas_check[i] = await self._create_despesa(
-                            dados_extraidos.classificacoes_despesa[i], 
-                            expense_repo, logs, transaction_id
-                        )
+                # Classificações de despesa são tratadas via tabela Classificacao (many-to-many)
+                logs.append(f"Despesas a classificar: {len(despesas_check)} itens via tabela Classificacao")
                 
-                # Criar movimento completo
+                # Criar movimento completo (com parcelas e classificações)
                 movimento_id = await self._create_movimento_completo(
-                    dados_extraidos, fornecedor_check, faturado_check, 
-                    movimento_repo, logs, transaction_id
+                    dados_extraidos, fornecedor_check, faturado_check,
+                    despesas_check, db, movimento_repo, logs, transaction_id
                 )
                 movimento_criado = True
                 
@@ -830,17 +873,18 @@ class PDFProcessingService:
             processing_time = time.time() - start_time
             
             result = PostProcessingResult(
-                success=True,  # Adicionar campo success
+                success=True,
                 fornecedor=fornecedor_check,
                 faturado=faturado_check,
                 despesas=despesas_check,
-                extracted_data=dados_extraidos,  # Adicionar dados extraídos
+                extracted_data=dados_extraidos,
                 movimento_criado=movimento_criado,
                 movimento_id=movimento_id,
                 transaction_id=transaction_id,
                 processing_time=processing_time,
                 logs=logs,
-                errors=errors
+                errors=errors,
+                error_message=None
             )
             
             logger.info(f"PÓS-PROCESSAMENTO CONCLUÍDO - Transaction ID: {transaction_id}")
@@ -855,22 +899,36 @@ class PDFProcessingService:
             logger.error(error_msg)
             
             return PostProcessingResult(
-                success=False,  # Adicionar campo success
+                success=False,
                 fornecedor=FornecedorExistenceCheck(
+                    documento="",
                     razao_social="Erro",
-                    status=EntityExistenceStatus(exists=False)
+                    status=EntityExistenceStatus(
+                        exists=False,
+                        entity_id=None,
+                        entity_data=None,
+                        created=False
+                    )
                 ),
                 faturado=FaturadoExistenceCheck(
+                    documento="",
                     razao_social="Erro",
-                    status=EntityExistenceStatus(exists=False)
+                    status=EntityExistenceStatus(
+                        exists=False,
+                        entity_id=None,
+                        entity_data=None,
+                        created=False
+                    )
                 ),
                 despesas=[],
+                extracted_data=None,
                 movimento_criado=False,
                 movimento_id=None,
                 transaction_id=transaction_id,
                 processing_time=processing_time,
                 logs=logs,
-                errors=errors
+                errors=errors,
+                error_message=error_msg
             )
     
     async def _check_fornecedor_existence(
@@ -901,13 +959,14 @@ class PDFProcessingService:
                     razao_social=fornecedor.razao_social,
                     status=EntityExistenceStatus(
                         exists=True,
-                        entity_id=pessoa.idPessoas,
+                        entity_id=getattr(pessoa, 'idPessoas', None),
                         entity_data={
-                            "id": pessoa.idPessoas,
+                            "id": getattr(pessoa, 'idPessoas', None),
                             "razao_social": pessoa.razaosocial,
                             "documento": pessoa.documento,
                             "tipo": pessoa.tipo
-                        }
+                        },
+                        created=False
                     )
                 )
             else:
@@ -915,7 +974,12 @@ class PDFProcessingService:
                 return FornecedorExistenceCheck(
                     documento=fornecedor.cnpj,  # Usar CNPJ como documento
                     razao_social=fornecedor.razao_social,
-                    status=EntityExistenceStatus(exists=False)
+                    status=EntityExistenceStatus(
+                        exists=False,
+                        entity_id=None,
+                        entity_data=None,
+                        created=False
+                    )
                 )
                 
         except Exception as e:
@@ -923,7 +987,12 @@ class PDFProcessingService:
             return FornecedorExistenceCheck(
                 documento=fornecedor.cnpj,  # Usar CNPJ como documento
                 razao_social=fornecedor.razao_social,
-                status=EntityExistenceStatus(exists=False)
+                status=EntityExistenceStatus(
+                    exists=False,
+                    entity_id=None,
+                    entity_data=None,
+                    created=False
+                )
             )
     
     async def _check_faturado_existence(
@@ -954,13 +1023,14 @@ class PDFProcessingService:
                     razao_social=faturado.nome_completo,
                     status=EntityExistenceStatus(
                         exists=True,
-                        entity_id=pessoa.idPessoas,
+                        entity_id=getattr(pessoa, 'idPessoas', None),
                         entity_data={
-                            "id": pessoa.idPessoas,
+                            "id": getattr(pessoa, 'idPessoas', None),
                             "razao_social": pessoa.razaosocial,
                             "documento": pessoa.documento,
                             "tipo": pessoa.tipo
-                        }
+                        },
+                        created=False
                     )
                 )
             else:
@@ -968,58 +1038,45 @@ class PDFProcessingService:
                 return FaturadoExistenceCheck(
                     documento=faturado.cpf,
                     razao_social=faturado.nome_completo,
-                    status=EntityExistenceStatus(exists=False)
+                    status=EntityExistenceStatus(
+                        exists=False,
+                        entity_id=None,
+                        entity_data=None,
+                        created=False
+                    )
                 )
                 
         except Exception as e:
             logs.append(f"Erro ao verificar faturado: {str(e)}")
             return FaturadoExistenceCheck(
-            documento=faturado.cpf,
-            razao_social=faturado.nome_completo,
-                status=EntityExistenceStatus(exists=False)
+                documento=faturado.cpf,
+                razao_social=faturado.nome_completo,
+                status=EntityExistenceStatus(
+                    exists=False,
+                    entity_id=None,
+                    entity_data=None,
+                    created=False
+                )
             )
     
     async def _check_despesa_existence(
         self, 
         despesa: ClassificacaoDespesaExtraidaSchema, 
-        repo: ExpenseTypeRepository, 
         logs: List[str]
     ) -> DespesaExistenceCheck:
-        """Verifica se o tipo de despesa existe no banco de dados."""
-        try:
-            # Buscar por descrição exata
-            expense_type = repo.find_by_description(despesa.descricao)
-            
-            if expense_type:
-                logs.append(f"Tipo de despesa encontrado: {expense_type.description} (ID: {expense_type.id})")
-                return DespesaExistenceCheck(
-                    descricao=despesa.descricao,
-                    categoria=despesa.categoria,
-                    status=EntityExistenceStatus(
-                        exists=True,
-                        entity_id=expense_type.id,
-                        entity_data={
-                            "id": expense_type.id,
-                            "description": expense_type.description,
-                            "category": expense_type.category
-                        }
-                    )
-                )
-            else:
-                logs.append(f"Tipo de despesa não encontrado: {despesa.descricao}")
-                return DespesaExistenceCheck(
-                    descricao=despesa.descricao,
-                    categoria=despesa.categoria,
-                    status=EntityExistenceStatus(exists=False)
-                )
-                
-        except Exception as e:
-            logs.append(f"Erro ao verificar tipo de despesa: {str(e)}")
-            return DespesaExistenceCheck(
-                descricao=despesa.descricao,
-                categoria=despesa.categoria,
-                status=EntityExistenceStatus(exists=False)
+        """Verifica se o tipo de despesa existe - DEPRECATED: usar Classificacao."""
+        # Não verifica mais, apenas retorna não existente
+        logs.append(f"Classificação de despesa será tratada via tabela Classificacao: {despesa.descricao}")
+        return DespesaExistenceCheck(
+            descricao=despesa.descricao,
+            categoria=despesa.categoria,
+            status=EntityExistenceStatus(
+                exists=False,
+                entity_id=None,
+                entity_data=None,
+                created=False
             )
+        )
     
     async def _create_fornecedor(
         self, 
@@ -1045,9 +1102,9 @@ class PDFProcessingService:
                 razao_social=fornecedor.razao_social,
                 status=EntityExistenceStatus(
                     exists=True,
-                    entity_id=pessoa.idPessoas,
+                    entity_id=getattr(pessoa, 'idPessoas', None),
                     entity_data={
-                        "id": pessoa.idPessoas,
+                        "id": getattr(pessoa, 'idPessoas', None),
                         "razao_social": pessoa.razaosocial,
                         "documento": pessoa.documento,
                         "tipo": pessoa.tipo
@@ -1085,9 +1142,9 @@ class PDFProcessingService:
                 razao_social=faturado.nome_completo,
                 status=EntityExistenceStatus(
                     exists=True,
-                    entity_id=pessoa.idPessoas,
+                    entity_id=getattr(pessoa, 'idPessoas', None),
                     entity_data={
-                        "id": pessoa.idPessoas,
+                        "id": getattr(pessoa, 'idPessoas', None),
                         "razao_social": pessoa.razaosocial,
                         "documento": pessoa.documento,
                         "tipo": pessoa.tipo
@@ -1098,44 +1155,6 @@ class PDFProcessingService:
             
         except Exception as e:
             error_msg = f"Erro ao criar faturado: {str(e)}"
-            logs.append(error_msg)
-            raise Exception(error_msg)
-    
-    async def _create_despesa(
-        self, 
-        despesa: ClassificacaoDespesaExtraidaSchema, 
-        repo: ExpenseTypeRepository, 
-        logs: List[str],
-        transaction_id: str
-    ) -> DespesaExistenceCheck:
-        """Cria um novo tipo de despesa no banco de dados."""
-        try:
-            expense_data = {
-                "description": despesa.descricao,
-                "category": despesa.categoria,
-                "notes": f"Criado automaticamente via IA - Confiança: {despesa.confianca}%"
-            }
-            
-            expense_type = repo.create(expense_data)
-            logs.append(f"Tipo de despesa criado: {expense_type.description} (ID: {expense_type.id})")
-            
-            return DespesaExistenceCheck(
-                descricao=despesa.descricao,
-                categoria=despesa.categoria,
-                status=EntityExistenceStatus(
-                    exists=True,
-                    entity_id=expense_type.id,
-                    entity_data={
-                        "id": expense_type.id,
-                        "description": expense_type.description,
-                        "category": expense_type.category
-                    },
-                    created=True
-                )
-            )
-            
-        except Exception as e:
-            error_msg = f"Erro ao criar tipo de despesa: {str(e)}"
             logs.append(error_msg)
             raise Exception(error_msg)
     
@@ -1158,18 +1177,23 @@ class PDFProcessingService:
         dados_extraidos: DadosExtraidosPDFSchema,
         fornecedor_check: FornecedorExistenceCheck,
         faturado_check: FaturadoExistenceCheck,
+        despesas_check: List['DespesaExistenceCheck'],
+        db: Session,
         repo: MovimentoContasRepository,
         logs: List[str],
         transaction_id: str
     ) -> int:
-        """Cria o movimento completo no banco de dados."""
+        """
+        Cria o movimento completo no banco de dados.
+        ETAPA 2: Cria parcelas e vincula classificações.
+        """
         try:
             # Verificar se já existe movimento com esta nota fiscal
             existing_movimento = await self._check_duplicate_invoice(dados_extraidos, repo, logs)
             if existing_movimento:
-                error_msg = f"Já existe um movimento com a nota fiscal {dados_extraidos.numero_nota_fiscal}"
+                error_msg = f"Já existe um movimento com a nota fiscal {dados_extraidos.numero_nota_fiscal or 'SEM_NUMERO'}"
                 logs.append(error_msg)
-                raise DuplicateInvoiceError(dados_extraidos.numero_nota_fiscal)
+                raise DuplicateInvoiceError(dados_extraidos.numero_nota_fiscal or "SEM_NUMERO")
             
             movimento_data = {
                 "tipo": "DESPESA",
@@ -1185,7 +1209,74 @@ class PDFProcessingService:
             movimento = repo.create(movimento_data)
             logs.append(f"Movimento criado: NF {dados_extraidos.numero_nota_fiscal} (ID: {movimento.idMovimentoContas})")
             
-            return movimento.idMovimentoContas
+            # ETAPA 2: Criar parcelas automaticamente
+            from ..repositories.parcelas_repository import ParcelasContasRepository
+            parcelas_repo = ParcelasContasRepository(db)
+            
+            parcelas_criadas = 0
+            if dados_extraidos.parcelas and len(dados_extraidos.parcelas) > 0:
+                for parcela in dados_extraidos.parcelas:
+                    # Gerar identificação única para a parcela
+                    identificacao = f"{dados_extraidos.numero_nota_fiscal}-P{parcela.numero_parcela:02d}"
+                    
+                    parcela_data = {
+                        "identificacao": identificacao,
+                        "valorparcela": float(parcela.valor_parcela),
+                        "datavencimento": parcela.data_vencimento,
+                        "statusparcela": "PENDENTE",
+                        "MovimentoContas_idMovimentoContas": movimento.idMovimentoContas
+                    }
+                    
+                    parcelas_repo.create(parcela_data)
+                    parcelas_criadas += 1
+                
+                logs.append(f"{parcelas_criadas} parcela(s) criada(s) para o movimento")
+            else:
+                # Se não há parcelas, criar uma única parcela com valor total
+                identificacao = f"{dados_extraidos.numero_nota_fiscal}-P01"
+                parcela_data = {
+                    "identificacao": identificacao,
+                    "valorparcela": float(dados_extraidos.valor_total),
+                    "datavencimento": dados_extraidos.data_emissao,
+                    "statusparcela": "PENDENTE",
+                    "MovimentoContas_idMovimentoContas": movimento.idMovimentoContas
+                }
+                parcelas_repo.create(parcela_data)
+                parcelas_criadas = 1
+                logs.append(f"1 parcela única criada (valor total)")
+            
+            # ETAPA 2: Vincular classificações ao movimento (many-to-many)
+            from ..repositories.classificacao_repository import ClassificacaoRepository
+            classificacao_repo = ClassificacaoRepository(db)
+            
+            classificacoes_vinculadas = 0
+            for despesa_check in despesas_check:
+                if despesa_check.status.exists and despesa_check.status.entity_id:
+                    # Buscar a classificação correspondente por tipo e descrição
+                    classificacao = classificacao_repo.find_by_tipo_and_descricao(
+                        "DESPESA",
+                        despesa_check.categoria
+                    )
+                    
+                    if classificacao:
+                        # Vincular classificação ao movimento via SQL direto (many-to-many)
+                        sql = text("""
+                            INSERT INTO movimento_contas_has_classificacao 
+                            (MovimentoContas_idMovimentoContas, Classificacao_idClassificacao)
+                            VALUES (:movimento_id, :classificacao_id)
+                        """)
+                        db.execute(sql, {
+                            "movimento_id": movimento.idMovimentoContas,
+                            "classificacao_id": classificacao.idClassificacao
+                        })
+                        db.commit()
+                        classificacoes_vinculadas += 1
+            
+            logs.append(f"{classificacoes_vinculadas} classificação(ões) vinculada(s) ao movimento")
+            
+            # Retornar o ID do movimento como int
+            movimento_id = getattr(movimento, 'idMovimentoContas', 0)
+            return int(movimento_id) if movimento_id else 0
             
         except Exception as e:
             error_msg = f"Erro ao criar movimento: {str(e)}"

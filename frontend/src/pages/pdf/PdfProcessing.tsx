@@ -1,19 +1,19 @@
 import { useState, useCallback } from 'react';
-import { FileText, Upload, CheckCircle, AlertCircle, Loader2, Eye, Code, Layout, Database, Save } from 'lucide-react';
+import { FileText, Upload, CheckCircle, AlertCircle, Loader2, Eye, Code, Save, Layout, Database, Trash2, Search } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
-import { ProcessamentoPDFResponse, VerificacoesDados } from '../../types/pdf';
+import { ProcessamentoPDFResponse } from '../../types/pdf';
 
 interface ProcessedData extends ProcessamentoPDFResponse {}
-
-type ViewMode = 'formatted' | 'json';
 
 export function PdfProcessing() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('formatted');
+  const [viewMode, setViewMode] = useState<'formatted' | 'json'>('formatted');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -37,46 +37,21 @@ export function PdfProcessing() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Usar o endpoint completo que inclui pós-processamento
-      const response = await fetch('http://localhost:8000/api/v1/pdf/process-complete', {
+      // USAR NOVO ENDPOINT QUE APENAS ANALISA (NÃO SALVA)
+      const response = await fetch('http://localhost:8000/api/v1/pdf/analyze-only', {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        
-        // Tratamento específico para nota fiscal duplicada
-        if (response.status === 409 && errorData.error_code === 'DUPLICATE_INVOICE_ERROR') {
-          // Se há dados de verificação e dados extraídos, processar como duplicata
-          if (errorData.verification_data && errorData.extracted_data) {
-            const duplicateData = {
-              dados_extraidos: errorData.extracted_data,
-              verificacoes: errorData.verification_data,
-              is_duplicate: true,
-              duplicate_message: errorData.detail,
-              existing_movement_id: errorData.existing_movement_id
-            };
-            setProcessedData(duplicateData);
-            toast.error(`Nota fiscal duplicada: ${errorData.detail}`);
-            return; // Não lançar erro, apenas mostrar os dados
-          } else {
-            // Fallback para o comportamento anterior se não há dados completos
-            const invoiceNumber = errorData.invoice_number;
-            throw new Error(`Nota fiscal ${invoiceNumber} já foi processada anteriormente. Verifique se este documento já não foi cadastrado no sistema.`);
-          }
-        }
-        
         throw new Error(errorData.detail || 'Erro ao processar PDF');
       }
 
       const data = await response.json();
       console.log('Dados recebidos da API:', data);
-      console.log('Verificações:', data.verificacoes);
-      console.log('processedData existe?', !!data);
-      console.log('processedData.verificacoes existe?', !!data.verificacoes);
       setProcessedData(data);
-      toast.success('PDF processado com sucesso!');
+      toast.success('PDF analisado! Revise os dados antes de salvar.');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
       setError(errorMessage);
@@ -86,92 +61,159 @@ export function PdfProcessing() {
     }
   }, []);
 
-  const handleSaveAsPayable = async () => {
+  const handleSaveData = async () => {
     if (!processedData?.dados_extraidos) {
-      toast.error('Nenhum dado extraído para salvar');
+      toast.error('Nenhum dado para salvar');
       return;
     }
 
     setIsSaving(true);
     try {
-      const response = await fetch('/api/v1/pdf/save-as-payable', {
+      const response = await fetch('http://localhost:8000/api/v1/pdf/save-analyzed-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          dados_extraidos: processedData.dados_extraidos,
-          confirmar_criacao: true
-        }),
+        body: JSON.stringify(processedData.dados_extraidos),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Erro ao salvar conta a pagar');
+        throw new Error(errorData.detail || 'Erro ao salvar dados');
       }
 
       const result = await response.json();
-      toast.success('Conta a pagar criada com sucesso!');
+      toast.success(`Dados salvos com sucesso! Movimento ID: ${result.movimento_id}`);
       
-      // Atualizar o estado para mostrar que os registros foram criados
-      setProcessedData(prev => prev ? {
-        ...prev,
-        registros_criados: {
-          success: true,
-          message: "Todos os registros foram criados com sucesso!",
-          supplier_created: true,
-          billed_person_created: !!result.faturado_id,
-          expense_types_created: result.classificacoes_aplicadas?.length > 0 ? [] : undefined,
-          payable_account_created: true,
-          installments_created: true
-        }
-      } : null);
-      
+      // Limpar dados após salvar
+      setProcessedData(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao salvar';
       toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCreateRecords = async () => {
+  const handleCheckData = async () => {
     if (!processedData?.dados_extraidos) {
-      toast.error('Nenhum dado extraído para processar');
+      toast.error('Nenhum dado para consultar');
       return;
     }
 
-    // Verificar se os registros já foram criados
-    if (processedData.registros_criados?.payable_account_created) {
-      toast.success('Os registros já foram criados automaticamente!');
-      return;
-    }
-
-    setIsSaving(true);
+    setIsChecking(true);
     try {
-      // Como o endpoint process-complete já cria os registros automaticamente,
-      // vamos apenas atualizar o estado para mostrar que foram criados
-      toast.success('Todos os registros foram criados com sucesso!');
-      
-      // Atualizar o estado para mostrar que os registros foram criados
-      setProcessedData(prev => prev ? {
-        ...prev,
-        registros_criados: {
-          success: true,
-          message: "Fornecedor, faturado, despesas e movimento foram criados com sucesso!",
-          supplier_created: prev.registros_criados?.supplier_created || true,
-          billed_person_created: prev.registros_criados?.billed_person_created || true,
-          expense_types_created: prev.registros_criados?.expense_types_created || [],
-          payable_account_created: prev.registros_criados?.payable_account_created || true,
-          installments_created: prev.registros_criados?.installments_created || true
+      // Verificar se o movimento já existe pelo número da nota fiscal
+      const response = await fetch(
+        `http://localhost:8000/api/v1/pdf/check-invoice-exists?numero_nota_fiscal=${processedData.dados_extraidos.numero_nota_fiscal}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      } : null);
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Erro ao consultar dados');
+      }
+
+      const result = await response.json();
       
+      if (result.exists) {
+        toast.success(
+          `✅ Dados JÁ estão cadastrados no sistema!\n` +
+          `Movimento ID: ${result.movimento_id}\n` +
+          `Nota Fiscal: ${result.numero_nota_fiscal}\n` +
+          `Fornecedor: ${result.fornecedor_razao_social}`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.error(
+          `ℹ️ Dados NÃO estão cadastrados no sistema.\n` +
+          `Nota Fiscal: ${processedData.dados_extraidos.numero_nota_fiscal} não encontrada.`,
+          { 
+            duration: 5000,
+            style: {
+              background: '#3b82f6',
+              color: '#fff',
+            }
+          }
+        );
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao consultar';
       toast.error(errorMessage);
     } finally {
-      setIsSaving(false);
+      setIsChecking(false);
+    }
+  };
+
+  const handleDeleteData = async () => {
+    if (!processedData?.dados_extraidos) {
+      toast.error('Nenhum dado para deletar');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Verificar se existe antes de deletar
+      const checkResponse = await fetch(
+        `http://localhost:8000/api/v1/pdf/check-invoice-exists?numero_nota_fiscal=${processedData.dados_extraidos.numero_nota_fiscal}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!checkResponse.ok) {
+        throw new Error('Erro ao verificar existência dos dados');
+      }
+
+      const checkResult = await checkResponse.json();
+
+      if (!checkResult.exists) {
+        toast.error(
+          'Não é possível deletar esses dados, pois eles não estão inseridos no sistema!',
+          { duration: 5000 }
+        );
+        return;
+      }
+
+      // Deletar o movimento (soft delete)
+      const deleteResponse = await fetch(
+        `http://localhost:8000/api/v1/pdf/delete-invoice/${checkResult.movimento_id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json();
+        throw new Error(errorData.detail || 'Erro ao deletar dados');
+      }
+
+      await deleteResponse.json();
+      toast.success(
+        `✅ Dados deletados com sucesso!\n` +
+        `Movimento ID: ${checkResult.movimento_id}\n` +
+        `Nota Fiscal: ${checkResult.numero_nota_fiscal}`,
+        { duration: 5000 }
+      );
+      
+      // Limpar dados após deletar
+      setProcessedData(null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao deletar';
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -327,8 +369,8 @@ export function PdfProcessing() {
           </div>
 
           {/* Visualização Condicional */}
-          {viewMode === 'formatted' ? (
-            <>
+          {viewMode === 'formatted' && (
+            <div>
               {/* Bloco de Análise Formatado */}
               {processedData.verificacoes && (
                 <div className="card border-gray-300 bg-gray-50">
@@ -350,13 +392,13 @@ export function PdfProcessing() {
                           <div className="text-gray-700 ml-2">
                             CNPJ: {processedData.dados_extraidos?.fornecedor?.cnpj || 'N/A'}
                           </div>
-                          <div className={`font-bold ml-2 ${
-                            processedData.verificacoes.supplier.exists 
+                          <div className={`font-bold ${
+                            processedData.verificacoes.fornecedor.exists
                               ? 'text-green-700' 
                               : 'text-red-700'
                           }`}>
-                            {processedData.verificacoes.supplier.exists ? 'EXISTE' : 'NÃO EXISTE'}
-                            {processedData.verificacoes.supplier.id && ` – ID: ${processedData.verificacoes.supplier.id}`}
+                            {processedData.verificacoes.fornecedor.exists ? 'EXISTE' : 'NÃO EXISTE'}
+                            {processedData.verificacoes.fornecedor.id && ` – ID: ${processedData.verificacoes.fornecedor.id}`}
                           </div>
                         </div>
 
@@ -371,13 +413,13 @@ export function PdfProcessing() {
                               <div className="text-gray-700 ml-2">
                                 CPF: {processedData.dados_extraidos.faturado.cpf}
                               </div>
-                              <div className={`font-bold ml-2 ${
-                                processedData.verificacoes.billed_person.exists 
+                              <div className={`font-bold ${
+                                processedData.verificacoes.faturado?.exists
                                   ? 'text-green-700' 
                                   : 'text-red-700'
                               }`}>
-                                {processedData.verificacoes.billed_person.exists ? 'EXISTE' : 'NÃO EXISTE'}
-                                {processedData.verificacoes.billed_person.id && ` – ID: ${processedData.verificacoes.billed_person.id}`}
+                                {processedData.verificacoes.faturado?.exists ? 'EXISTE' : 'NÃO EXISTE'}
+                                {processedData.verificacoes.faturado?.id && ` – ID: ${processedData.verificacoes.faturado.id}`}
                               </div>
                             </>
                           ) : (
@@ -403,14 +445,14 @@ export function PdfProcessing() {
                                   Percentual: {classificacao.percentual}% | Confiança: {(classificacao.confianca * 100).toFixed(1)}%
                                 </div>
                                 {/* Verificação de existência da despesa */}
-                                {processedData.verificacoes?.expense_types && processedData.verificacoes.expense_types[index] ? (
+                                {processedData.verificacoes?.classificacoes && processedData.verificacoes.classificacoes[index] ? (
                                   <div className={`font-bold ${
-                                    processedData.verificacoes.expense_types[index].exists 
+                                    processedData.verificacoes.classificacoes[index].exists 
                                       ? 'text-green-700' 
                                       : 'text-red-700'
                                   }`}>
-                                    {processedData.verificacoes.expense_types[index].exists 
-                                      ? `EXISTE ID ${processedData.verificacoes.expense_types[index].id}` 
+                                    {processedData.verificacoes.classificacoes[index].exists 
+                                      ? `EXISTE ID ${processedData.verificacoes.classificacoes[index].id}` 
                                       : 'NÃO EXISTE'
                                     }
                                   </div>
@@ -447,11 +489,11 @@ export function PdfProcessing() {
                       <p className="text-gray-900">{processedData.dados_extraidos?.fornecedor?.razao_social || 'N/A'}</p>
                       <p className="text-gray-700">CNPJ: {processedData.dados_extraidos?.fornecedor?.cnpj || 'N/A'}</p>
                       <p className={`font-medium mt-2 ${
-                        processedData.verificacoes.supplier.exists 
+                        processedData.verificacoes.fornecedor.exists 
                           ? 'text-green-600' 
                           : 'text-red-600'
                       }`}>
-                        {processedData.verificacoes.supplier.message}
+                        {processedData.verificacoes.fornecedor.acao}
                       </p>
                     </div>
 
@@ -466,13 +508,15 @@ export function PdfProcessing() {
                       ) : (
                         <p className="text-gray-500">Não informado</p>
                       )}
-                      <p className={`font-medium mt-2 ${
-                        processedData.verificacoes.billed_person.exists 
-                          ? 'text-green-600' 
-                          : 'text-red-600'
-                      }`}>
-                        {processedData.verificacoes.billed_person.message}
-                      </p>
+                      {processedData.verificacoes?.faturado && (
+                        <p className={`font-medium mt-2 ${
+                          processedData.verificacoes.faturado.exists 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {processedData.verificacoes.faturado.acao}
+                        </p>
+                      )}
                     </div>
 
                     {/* Verificação das Despesas */}
@@ -489,14 +533,14 @@ export function PdfProcessing() {
                               Percentual: {classificacao.percentual}% | Confiança: {(classificacao.confianca * 100).toFixed(1)}%
                             </p>
                             {/* Status de verificação da despesa */}
-                            {processedData.verificacoes?.expense_types && processedData.verificacoes.expense_types[index] ? (
+                            {processedData.verificacoes?.classificacoes && processedData.verificacoes.classificacoes[index] ? (
                               <p className={`font-medium mt-2 ${
-                                processedData.verificacoes.expense_types[index].exists 
+                                processedData.verificacoes.classificacoes[index].exists 
                                   ? 'text-green-600' 
                                   : 'text-red-600'
                               }`}>
-                                {processedData.verificacoes.expense_types[index].exists 
-                                  ? `Existe ID ${processedData.verificacoes.expense_types[index].id}` 
+                                {processedData.verificacoes.classificacoes[index].exists 
+                                  ? `Existe ID ${processedData.verificacoes.classificacoes[index].id}` 
                                   : 'Não existe'
                                 }
                               </p>
@@ -536,18 +580,17 @@ export function PdfProcessing() {
                         <div>
                           <div className="font-bold text-gray-900 mb-1">FORNECEDOR:</div>
                           <div className="text-gray-800 ml-2">
-                            {processedData.verificacoes?.supplier?.company_name || processedData.dados_extraidos?.fornecedor?.razao_social || 'N/A'}
+                            {processedData.dados_extraidos?.fornecedor?.razao_social || 'N/A'}
                           </div>
                           <div className="text-gray-700 ml-2">
-                            CNPJ: {processedData.verificacoes?.supplier?.tax_id || processedData.dados_extraidos?.fornecedor?.cnpj || 'N/A'}
+                            CNPJ: {processedData.dados_extraidos?.fornecedor?.cnpj || 'N/A'}
                           </div>
                           <div className={`font-bold ml-2 ${
-                            processedData.verificacoes?.supplier?.exists 
+                            processedData.verificacoes?.fornecedor.exists 
                               ? 'text-green-700' 
                               : 'text-red-700'
                           }`}>
-                            {processedData.verificacoes?.supplier?.exists ? 'EXISTE' : 'NÃO EXISTE'}
-                            {processedData.verificacoes?.supplier?.id && ` – ID: ${processedData.verificacoes.supplier.id}`}
+                            {processedData.verificacoes?.fornecedor.acao}
                           </div>
                         </div>
 
@@ -556,55 +599,79 @@ export function PdfProcessing() {
                           <div>
                             <div className="font-bold text-gray-900 mb-1">FATURADO:</div>
                             <div className="text-gray-800 ml-2">
-                              {processedData.verificacoes?.billed_person?.full_name || processedData.dados_extraidos.faturado.nome_completo || 'N/A'}
+                              {processedData.dados_extraidos.faturado.nome_completo || 'N/A'}
                             </div>
                             <div className="text-gray-700 ml-2">
-                              CPF: {processedData.verificacoes?.billed_person?.document_id || processedData.dados_extraidos.faturado.cpf || 'N/A'}
+                              CPF: {processedData.dados_extraidos.faturado.cpf || 'N/A'}
                             </div>
-                            <div className={`font-bold ml-2 ${
-                              processedData.verificacoes?.billed_person?.exists 
-                                ? 'text-green-700' 
-                                : 'text-red-700'
-                            }`}>
-                              {processedData.verificacoes?.billed_person?.exists ? 'EXISTE' : 'NÃO EXISTE'}
-                              {processedData.verificacoes?.billed_person?.id && ` – ID: ${processedData.verificacoes.billed_person.id}`}
-                            </div>
+                            {processedData.verificacoes?.faturado && (
+                              <div className={`font-bold ml-2 ${
+                                processedData.verificacoes?.faturado.exists 
+                                  ? 'text-green-700' 
+                                  : 'text-red-700'
+                              }`}>
+                                {processedData.verificacoes?.faturado.acao}
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {/* DESPESAS */}
+                        {/* PARCELAS */}
                         <div>
-                          <div className="font-bold text-gray-900 mb-1">DESPESAS:</div>
-                          {processedData.dados_extraidos?.classificacoes_despesa && processedData.dados_extraidos.classificacoes_despesa.length > 0 ? (
-                            <div>
-                              {processedData.dados_extraidos.classificacoes_despesa.map((classificacao, index) => {
-                                // Buscar informações de verificação correspondentes
-                                const verificacaoCorrespondente = processedData.verificacoes?.expenses?.find(
-                                  expense => expense.category === classificacao.categoria
-                                );
-                                
-                                return (
-                                  <div key={index} className="ml-2 mb-2">
-                                    <div className="text-gray-800">
-                                      {classificacao.categoria || 'N/A'}
-                                    </div>
-                                    {verificacaoCorrespondente ? (
-                                      <div className={`font-bold ${
-                                        verificacaoCorrespondente.exists 
-                                          ? 'text-green-700' 
-                                          : 'text-red-700'
-                                      }`}>
-                                        {verificacaoCorrespondente.exists ? 'EXISTE' : 'NÃO EXISTE'}
-                                        {verificacaoCorrespondente.id && ` – ID: ${verificacaoCorrespondente.id}`}
-                                      </div>
-                                    ) : (
-                                      <div className="font-bold text-blue-700">
-                                        CLASSIFICAÇÃO EXTRAÍDA
-                                      </div>
-                                    )}
+                          <div className="font-bold text-gray-900 mb-1">PARCELAS:</div>
+                          {processedData.dados_extraidos?.parcelas && processedData.dados_extraidos.parcelas.length > 0 ? (
+                            <div className="ml-2 space-y-2">
+                              {processedData.dados_extraidos.parcelas.map((parcela, index) => (
+                                <div key={index} className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-800">
+                                    Parcela {parcela.numero_parcela} de {processedData.dados_extraidos?.quantidade_parcelas}
                                   </div>
-                                );
-                              })}
+                                  <div className="text-gray-700">
+                                    Vencimento: {new Date(parcela.data_vencimento).toLocaleDateString('pt-BR')}
+                                  </div>
+                                  <div className="text-gray-700">
+                                    Valor: R$ {parcela.valor_parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-gray-500 ml-2">Nenhuma parcela identificada</div>
+                          )}
+                        </div>
+
+                        {/* CLASSIFICAÇÕES DE DESPESA */}
+                        <div>
+                          <div className="font-bold text-gray-900 mb-1">CLASSIFICAÇÕES DE DESPESA:</div>
+                          {processedData.dados_extraidos?.classificacoes_despesa && processedData.dados_extraidos.classificacoes_despesa.length > 0 ? (
+                            <div className="ml-2 space-y-2">
+                              {processedData.dados_extraidos.classificacoes_despesa.map((classificacao, index) => (
+                                <div key={index} className="bg-gray-50 p-2 rounded">
+                                  <div className="text-gray-800 font-medium">
+                                    {classificacao.categoria}
+                                  </div>
+                                  {classificacao.descricao && (
+                                    <div className="text-gray-700 text-sm">
+                                      {classificacao.descricao}
+                                    </div>
+                                  )}
+                                  <div className="text-gray-600 text-xs">
+                                    Percentual: {classificacao.percentual}% | Confiança: {(classificacao.confianca * 100).toFixed(1)}%
+                                  </div>
+                                  {processedData.verificacoes?.classificacoes && processedData.verificacoes.classificacoes[index] && (
+                                    <div className={`font-bold text-sm ${
+                                      processedData.verificacoes.classificacoes[index].exists 
+                                        ? 'text-green-700' 
+                                        : 'text-red-700'
+                                    }`}>
+                                      {processedData.verificacoes.classificacoes[index].exists 
+                                        ? `Existe (ID ${processedData.verificacoes.classificacoes[index].id})` 
+                                        : 'Não existe – Será criada'
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             <div className="text-gray-500 ml-2">Nenhuma despesa identificada</div>
@@ -613,89 +680,61 @@ export function PdfProcessing() {
                       </div>
                     </div>
                     
-                    {/* Botão para criar registros automaticamente */}
-                    {!processedData.registros_criados?.success && (
-                      <div className="mt-6 flex justify-center">
-                        <button
-                          onClick={handleCreateRecords}
-                          disabled={isSaving}
-                          className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {isSaving ? (
-                            <>
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              <span>Criando registros...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Save className="h-5 w-5" />
-                              <span>Criar Registros Automaticamente</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Mensagem de sucesso */}
-                    {processedData.registros_criados?.success && (
-                      <div className="mt-6 p-4 bg-green-100 border border-green-300 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <h4 className="font-medium text-green-800">Registros Criados com Sucesso!</h4>
-                        </div>
-                        <div className="mt-2 text-sm text-green-700">
-                          <ul className="list-disc list-inside space-y-1">
-                            {processedData.registros_criados.supplier_created && (
-                              <li>Fornecedor criado/atualizado</li>
-                            )}
-                            {processedData.registros_criados.billed_person_created && (
-                              <li>Pessoa faturada criada/atualizada</li>
-                            )}
-                            {processedData.registros_criados.expense_types_created && 
-                             processedData.registros_criados.expense_types_created.length > 0 && (
-                              <li>Tipos de despesa criados: {processedData.registros_criados.expense_types_created.length}</li>
-                            )}
-                            {processedData.registros_criados.payable_account_created && (
-                              <li>Movimento de conta criado</li>
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Dados Extraídos com Sucesso - Aguardando Confirmação */}
-              {processedData.dados_extraidos && !processedData.registros_criados && !processedData.is_duplicate && (
-                <div className="card border-blue-200 bg-blue-50">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium flex items-center">
-                      <CheckCircle className="h-5 w-5 mr-2 text-blue-600" />
-                      Dados Extraídos com Sucesso
-                    </h3>
-                  </div>
-                  <div className="card-body space-y-4">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <h4 className="font-semibold text-blue-800 mb-3">✅ EXTRAÇÃO REALIZADA COM SUCESSO!</h4>
-                      <p className="text-gray-700 mb-4">
-                        Os dados foram extraídos e verificados. Clique no botão abaixo para salvar como conta a pagar.
-                      </p>
-                      
+                    {/* Botões de Ação */}
+                    <div className="mt-6 flex justify-center gap-4">
+                      {/* Botão CONSULTAR DADOS */}
                       <button
-                        onClick={handleSaveAsPayable}
-                        disabled={isSaving}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center transition-colors"
+                        onClick={handleCheckData}
+                        disabled={isChecking}
+                        className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {isSaving ? (
+                        {isChecking ? (
                           <>
-                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                            Salvando...
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Consultando...</span>
                           </>
                         ) : (
                           <>
-                            <Save className="h-5 w-5 mr-2" />
-                            Salvar como Conta a Pagar
+                            <Search className="h-5 w-5" />
+                            <span>Consultar Dados</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Botão INSERIR DADOS */}
+                      <button
+                        onClick={handleSaveData}
+                        disabled={isSaving}
+                        className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Salvando dados...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-5 w-5" />
+                            <span>Inserir Dados</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Botão DELETAR DADOS */}
+                      <button
+                        onClick={handleDeleteData}
+                        disabled={isDeleting}
+                        className="flex items-center space-x-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isDeleting ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>Deletando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-5 w-5" />
+                            <span>Deletar Dados</span>
                           </>
                         )}
                       </button>
@@ -703,277 +742,46 @@ export function PdfProcessing() {
                   </div>
                 </div>
               )}
-
-              {/* Registros Criados Automaticamente */}
-              {processedData.registros_criados && (
-                <div className="card border-green-200 bg-green-50">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium flex items-center">
-                      <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
-                      Registros Criados com Sucesso
-                    </h3>
-                  </div>
-                  <div className="card-body space-y-4">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <h4 className="font-semibold text-green-800 mb-3">✅ LANÇAMENTO REALIZADO COM SUCESSO!</h4>
-                      
-                      {processedData.registros_criados.supplier_created && (
-                        <div className="mb-2">
-                          <span className="text-green-700 font-medium">• Fornecedor criado:</span>
-                          <span className="text-gray-900 ml-2">{processedData.dados_extraidos?.fornecedor?.razao_social}</span>
-                        </div>
-                      )}
-                      
-                      {processedData.registros_criados.billed_person_created && (
-                        <div className="mb-2">
-                          <span className="text-green-700 font-medium">• Pessoa faturada criada:</span>
-                          <span className="text-gray-900 ml-2">{processedData.dados_extraidos?.faturado?.nome_completo}</span>
-                        </div>
-                      )}
-                      
-                      {processedData.registros_criados.expense_types_created && processedData.registros_criados.expense_types_created.length > 0 && (
-                        <div className="mb-2">
-                          <span className="text-green-700 font-medium">• Tipos de despesa criados:</span>
-                          <div className="ml-4 mt-1">
-                            {processedData.registros_criados.expense_types_created.map((expense: any, index: number) => (
-                              <div key={index} className="text-gray-900 text-sm">
-                                - {expense.category}: {expense.description}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {processedData.registros_criados.payable_account_created && (
-                        <div className="mb-2">
-                          <span className="text-green-700 font-medium">• Conta a pagar criada:</span>
-                          <span className="text-gray-900 ml-2">
-                            R$ {processedData.dados_extraidos?.valor_total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {processedData.registros_criados.installments_created && (
-                        <div className="mb-2">
-                          <span className="text-green-700 font-medium">• Parcelas criadas:</span>
-                          <span className="text-gray-900 ml-2">
-                            {processedData.dados_extraidos?.quantidade_parcelas} parcela(s)
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="mt-4 p-3 bg-green-100 rounded-lg">
-                        <p className="text-green-800 font-medium text-center">
-                          🎉 Todos os registros foram lançados no sistema com sucesso!
-                        </p>
-                        <p className="text-green-700 text-sm text-center mt-1">
-                          As entidades MOVIMENTOCONTAS, PARCELACONTAS, CLASSIFICACAO e PESSOAS foram atualizadas.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Supplier Info */}
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="text-lg font-medium">Dados do Fornecedor</h3>
-                </div>
-                <div className="card-body space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Razão Social</label>
-                    <p className="text-gray-900">{processedData.dados_extraidos?.fornecedor?.razao_social || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">CNPJ</label>
-                    <p className="text-gray-900">{processedData.dados_extraidos?.fornecedor?.cnpj || 'N/A'}</p>
-                  </div>
-                  {processedData.dados_extraidos?.fornecedor?.nome_fantasia && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Nome Fantasia</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos.fornecedor.nome_fantasia}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Invoice Info */}
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="text-lg font-medium">Dados da Nota Fiscal</h3>
-                </div>
-                <div className="card-body space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Número</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos?.numero_nota_fiscal || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Data de Emissão</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos?.data_emissao || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Qtd Parcelas</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos?.quantidade_parcelas || 0}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Confiança IA</label>
-                      <p className="text-blue-600 font-medium">{Math.round((processedData.dados_extraidos?.confianca_geral || 0) * 100)}%</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Valor Total</label>
-                    <p className="text-xl font-bold text-green-600">
-                      R$ {(processedData.dados_extraidos?.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Descrição dos Produtos</label>
-                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{processedData.dados_extraidos?.descricao_produtos || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Faturado Info */}
-              {processedData.dados_extraidos?.faturado && (
-                <div className="card">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium">Dados do Faturado</h3>
-                  </div>
-                  <div className="card-body space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Nome Completo</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos.faturado.nome_completo}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">CPF</label>
-                      <p className="text-gray-900">{processedData.dados_extraidos.faturado.cpf}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Parcelas */}
-              {processedData.dados_extraidos?.parcelas && processedData.dados_extraidos.parcelas.length > 0 && (
-                <div className="card">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium">Parcelas ({processedData.dados_extraidos.quantidade_parcelas})</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Parcela
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Data Vencimento
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Valor
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {processedData.dados_extraidos.parcelas.map((parcela, index) => (
-                            <tr key={index}>
-                              <td className="px-6 py-4 text-sm text-gray-900">{parcela.numero_parcela}</td>
-                              <td className="px-6 py-4 text-sm text-gray-900">{parcela.data_vencimento}</td>
-                              <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                                R$ {parcela.valor_parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Classifications */}
-              {processedData.dados_extraidos?.classificacoes_despesa && processedData.dados_extraidos.classificacoes_despesa.length > 0 && (
-                <div className="card">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium">Classificações de Despesa</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="space-y-3">
-                      {processedData.dados_extraidos.classificacoes_despesa.map((classificacao, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                          <div className="flex-1">
-                            <p className="font-semibold text-blue-900">{classificacao.categoria}</p>
-                            <p className="text-sm text-blue-700">{classificacao.descricao}</p>
-                            <p className="text-xs text-blue-600 mt-1">Percentual: {classificacao.percentual}%</p>
-                          </div>
-                          <div className="text-right">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                              {Math.round(classificacao.confianca * 100)}% confiança
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Observações da IA */}
-              {processedData.dados_extraidos?.observacoes_ia && (
-                <div className="card border-yellow-200 bg-yellow-50">
-                  <div className="card-header">
-                    <h3 className="text-lg font-medium text-yellow-800">Observações da IA</h3>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-yellow-700">{processedData.dados_extraidos.observacoes_ia}</p>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            /* Visualização JSON */
-            <div className="card">
-              <div className="card-header">
-                <h3 className="text-lg font-medium flex items-center">
-                  <Code className="h-5 w-5 mr-2" />
-                  Dados em Formato JSON
-                </h3>
-              </div>
-              <div className="card-body">
-                <div className="bg-gray-900 rounded-lg p-4 overflow-auto">
-                  <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap">
-                    {JSON.stringify(processedData.dados_extraidos, null, 2)}
-                  </pre>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-                  <span>Dados extraídos em formato JSON</span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(processedData.dados_extraidos, null, 2));
-                      toast.success('JSON copiado para a área de transferência!');
-                    }}
-                    className="btn btn-sm btn-secondary"
-                  >
-                    Copiar JSON
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Action Buttons */}
-          {/* <div className="flex space-x-4">
-            <button className="btn btn-primary">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Salvar como Conta a Pagar
-            </button>
-            <button className="btn btn-secondary">
-              <Eye className="h-4 w-4 mr-2" />
-              Revisar Dados
-            </button>
-          </div> */}
+          {/* JSON View */}
+          {viewMode === 'json' && (
+            <div className="card">
+                <div className="card-header border-b border-gray-200">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setViewMode('formatted')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        viewMode === 'json' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-blue-600 text-white'
+                      }`}
+                    >
+                      <Eye className="inline h-4 w-4 mr-2" />
+                      Visualização Formatada
+                    </button>
+                    <button
+                      onClick={() => setViewMode('json')}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        viewMode === 'json'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Code className="inline h-4 w-4 mr-2" />
+                      JSON Bruto
+                    </button>
+                  </div>
+                </div>
+
+                <div className="card-body">
+                  <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto">
+                    <pre className="text-sm font-mono">
+                      {JSON.stringify(processedData, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+          )}
         </div>
       )}
     </div>

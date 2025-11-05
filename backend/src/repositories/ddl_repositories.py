@@ -28,13 +28,29 @@ class PessoasRepository:
         self.db.refresh(pessoa)
         return pessoa
     
-    def get_by_id(self, pessoa_id: int) -> Optional[Pessoas]:
-        """Busca pessoa por ID."""
-        return self.db.query(Pessoas).filter(Pessoas.idPessoas == pessoa_id).first()
+    def get_by_id(self, pessoa_id: int, include_deleted: bool = False) -> Optional[Pessoas]:
+        """
+        Busca pessoa por ID.
+        Por padrão, ignora registros inativados (soft delete).
+        """
+        query = self.db.query(Pessoas).filter(Pessoas.idPessoas == pessoa_id)
+        
+        if not include_deleted:
+            query = query.filter(Pessoas.deleted_at.is_(None))
+        
+        return query.first()
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> List[Pessoas]:
-        """Lista todas as pessoas com paginação."""
-        return self.db.query(Pessoas).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[Pessoas]:
+        """
+        Lista todas as pessoas com paginação.
+        Por padrão, ignora registros inativados.
+        """
+        query = self.db.query(Pessoas)
+        
+        if not include_deleted:
+            query = query.filter(Pessoas.deleted_at.is_(None))
+        
+        return query.offset(skip).limit(limit).all()
     
     def update(self, pessoa_id: int, pessoa_data: dict) -> Optional[Pessoas]:
         """Atualiza uma pessoa."""
@@ -117,6 +133,36 @@ class PessoasRepository:
                 func.upper(Pessoas.tipo) == func.upper(tipo)
             )
         ).first()
+    
+    def inactivate(self, pessoa_id: int) -> Optional[Pessoas]:
+        """
+        INATIVA uma pessoa (soft delete).
+        Define deleted_at com timestamp atual.
+        """
+        pessoa = self.get_by_id(pessoa_id)
+        if pessoa:
+            setattr(pessoa, 'deleted_at', datetime.now())
+            self.db.commit()
+            self.db.refresh(pessoa)
+        return pessoa
+    
+    def reactivate(self, pessoa_id: int) -> Optional[Pessoas]:
+        """
+        REATIVA uma pessoa inativada.
+        Remove deleted_at.
+        """
+        pessoa = self.get_by_id(pessoa_id, include_deleted=True)
+        if pessoa and pessoa.deleted_at is not None:
+            setattr(pessoa, 'deleted_at', None)
+            self.db.commit()
+            self.db.refresh(pessoa)
+        return pessoa
+    
+    def find_inactive(self) -> List[Pessoas]:
+        """Busca apenas pessoas inativadas (soft deleted)."""
+        return self.db.query(Pessoas).filter(
+            Pessoas.deleted_at.is_not(None)
+        ).all()
 
 
 class MovimentoContasRepository:
@@ -136,15 +182,31 @@ class MovimentoContasRepository:
         self.db.refresh(movimento)
         return movimento
     
-    def get_by_id(self, movimento_id: int) -> Optional[MovimentoContas]:
-        """Busca movimento por ID."""
-        return self.db.query(MovimentoContas).filter(
+    def get_by_id(self, movimento_id: int, include_deleted: bool = False) -> Optional[MovimentoContas]:
+        """
+        Busca movimento por ID.
+        Por padrão, ignora registros inativados (soft delete).
+        """
+        query = self.db.query(MovimentoContas).filter(
             MovimentoContas.idMovimentoContas == movimento_id
-        ).first()
+        )
+        
+        if not include_deleted:
+            query = query.filter(MovimentoContas.deleted_at.is_(None))
+        
+        return query.first()
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> List[MovimentoContas]:
-        """Lista todos os movimentos com paginação."""
-        return self.db.query(MovimentoContas).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[MovimentoContas]:
+        """
+        Lista todos os movimentos com paginação.
+        Por padrão, ignora registros inativados.
+        """
+        query = self.db.query(MovimentoContas)
+        
+        if not include_deleted:
+            query = query.filter(MovimentoContas.deleted_at.is_(None))
+        
+        return query.offset(skip).limit(limit).all()
     
     def update(self, movimento_id: int, movimento_data: dict) -> Optional[MovimentoContas]:
         """Atualiza um movimento."""
@@ -215,3 +277,33 @@ class MovimentoContasRepository:
         return self.db.query(MovimentoContas).join(
             Pessoas, MovimentoContas.Pessoas_idFornecedorCliente == Pessoas.idPessoas
         ).offset(skip).limit(limit).all()
+    
+    def inactivate(self, movimento_id: int) -> Optional[MovimentoContas]:
+        """
+        INATIVA um movimento (soft delete).
+        Define deleted_at com timestamp atual.
+        """
+        movimento = self.get_by_id(movimento_id)
+        if movimento:
+            setattr(movimento, 'deleted_at', datetime.now())
+            self.db.commit()
+            self.db.refresh(movimento)
+        return movimento
+    
+    def reactivate(self, movimento_id: int) -> Optional[MovimentoContas]:
+        """
+        REATIVA um movimento inativado.
+        Remove deleted_at.
+        """
+        movimento = self.get_by_id(movimento_id, include_deleted=True)
+        if movimento and movimento.deleted_at is not None:
+            setattr(movimento, 'deleted_at', None)
+            self.db.commit()
+            self.db.refresh(movimento)
+        return movimento
+    
+    def find_inactive(self) -> List[MovimentoContas]:
+        """Busca apenas movimentos inativados (soft deleted)."""
+        return self.db.query(MovimentoContas).filter(
+            MovimentoContas.deleted_at.is_not(None)
+        ).all()

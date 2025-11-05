@@ -61,21 +61,25 @@ def create_database_if_not_exists():
     """
     Cria o banco de dados automaticamente se não existir.
     Conecta no banco 'postgres' padrão para criar o banco da aplicação.
+    
+    ⚠️ IMPORTANTE: PostgreSQL precisa estar rodando!
     """
     # Extrair informações da URL do banco
     db_url = settings.database_url
     
     if not db_url.startswith("postgresql"):
-        logger.info("Não é PostgreSQL, pulando criação automática do banco")
+        logger.info("ℹ️ Não é PostgreSQL, pulando criação automática do banco")
         return
     
     # Extrair nome do banco da URL
-    db_name = db_url.split('/')[-1]
+    db_name = db_url.split('/')[-1].split('?')[0]  # Remove query params se houver
     
     # URL para conectar no banco postgres padrão
-    postgres_url = db_url.replace(f'/{db_name}', '/postgres')
+    postgres_url = db_url.rsplit('/', 1)[0] + '/postgres'
     
     try:
+        logger.info("🔍 Verificando se o banco de dados existe...")
+        
         # Conectar no banco postgres padrão
         temp_engine = create_engine(postgres_url, isolation_level='AUTOCOMMIT')
         
@@ -87,38 +91,37 @@ def create_database_if_not_exists():
             )
             
             if not result.fetchone():
-                logger.info(f"Criando banco de dados: {db_name}")
+                logger.info(f"📦 Criando banco de dados: {db_name}")
                 conn.execute(text(f'CREATE DATABASE "{db_name}"'))
-                logger.info(f"Banco de dados {db_name} criado com sucesso!")
+                logger.info(f"✅ Banco de dados '{db_name}' criado com sucesso!")
             else:
-                logger.info(f"Banco de dados {db_name} já existe")
+                logger.info(f"ℹ️ Banco de dados '{db_name}' já existe")
         
         temp_engine.dispose()
         
     except Exception as e:
-        logger.error(f"Erro ao criar banco de dados: {e}")
+        logger.error(f"❌ Erro ao criar banco de dados: {e}")
+        logger.error(f"💡 Verifique se o PostgreSQL está rodando e as credenciais estão corretas")
         raise
 
 
 def init_db() -> None:
     """
-    Inicializa o banco de dados criando todas as tabelas.
+    Inicializa o banco de dados criando todas as tabelas via ORM.
     Usado principalmente para desenvolvimento e testes.
     """
-    # Primeiro, criar o banco se não existir
+    # Primeiro, criar o banco se não existir (apenas PostgreSQL)
     create_database_if_not_exists()
     
-    # TEMPORÁRIO: Importar apenas modelos DDL para banco limpo
-    # from ..models import (
-    #     BaseModel, Supplier, Customer, BilledPerson,
-    #     RevenueType, ExpenseType, PayableAccount, ReceivableAccount,
-    #     PayableInstallment, ReceivableInstallment
-    # )
-    
-    # Importar apenas modelos DDL
+    # Importar TODOS os modelos para criação das tabelas
     from ..models.ddl_models import Pessoas, MovimentoContas
+    from ..models.parcelas_models import ParcelasContas
+    from ..models.classificacao_models import Classificacao
     
-    logger.info("Criando apenas tabelas DDL no banco de dados...")
-    # Depois criar as tabelas
+    logger.info("🔧 Criando todas as tabelas no banco de dados via ORM...")
+    
+    # Criar todas as tabelas usando Base.metadata
     Base.metadata.create_all(bind=engine)
-    logger.info("Tabelas DDL criadas com sucesso!")
+    
+    logger.info("✅ Tabelas criadas com sucesso!")
+    logger.info(f"📊 Tabelas disponíveis: {list(Base.metadata.tables.keys())}")

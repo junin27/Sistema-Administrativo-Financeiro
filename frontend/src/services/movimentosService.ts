@@ -68,6 +68,7 @@ export interface MovimentoContaFilter {
   data_emissao_fim?: string;
   data_vencimento_inicio?: string;
   data_vencimento_fim?: string;
+  include_deleted?: boolean;
 }
 
 export interface MovimentosListResponse {

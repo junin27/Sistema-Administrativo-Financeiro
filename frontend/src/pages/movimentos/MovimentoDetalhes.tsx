@@ -13,18 +13,26 @@ import {
   XCircle,
   Clock
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import movimentosService, { MovimentoConta } from '../../services/movimentosService';
+import parcelasService from '../../services/parcelasService';
+import { Parcela, Classificacao } from '../../types/entities';
+import ParcelasList from '../../components/parcelas/ParcelasList';
 
 const MovimentoDetalhes: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [movimento, setMovimento] = useState<MovimentoConta | null>(null);
+  const [parcelas, setParcelas] = useState<Parcela[]>([]);
+  const [_classificacoes, _setClassificacoes] = useState<Classificacao[]>([]); // TODO: Implementar classificações
   const [loading, setLoading] = useState(true);
+  const [loadingParcelas, setLoadingParcelas] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       loadMovimento(parseInt(id));
+      loadParcelas(parseInt(id));
     }
   }, [id]);
 
@@ -35,8 +43,35 @@ const MovimentoDetalhes: React.FC = () => {
       setMovimento(response);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Erro ao carregar movimento');
+      toast.error('Erro ao carregar movimento');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadParcelas = async (movimentoId: number) => {
+    try {
+      setLoadingParcelas(true);
+      const response = await parcelasService.getByMovimento(movimentoId);
+      setParcelas(response);
+    } catch (err: any) {
+      console.error('Erro ao carregar parcelas:', err);
+      // Não mostra erro crítico se parcelas não carregarem
+    } finally {
+      setLoadingParcelas(false);
+    }
+  };
+
+  const handleMarcarParcelaPaga = async (parcelaId: number) => {
+    try {
+      await parcelasService.marcarComoPaga(parcelaId);
+      toast.success('Parcela marcada como paga!');
+      if (id) {
+        loadParcelas(parseInt(id));
+        loadMovimento(parseInt(id));
+      }
+    } catch (err: any) {
+      toast.error('Erro ao marcar parcela como paga');
     }
   };
 
@@ -305,6 +340,54 @@ const MovimentoDetalhes: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Parcelas */}
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2 text-blue-500" />
+                Parcelas ({parcelas.length})
+              </h2>
+            </div>
+            
+            <ParcelasList 
+              parcelas={parcelas}
+              onMarcarPaga={handleMarcarParcelaPaga}
+              loading={loadingParcelas}
+            />
+          </div>
+
+          {/* Classificações - TODO: Implementar */}
+          {/* {_classificacoes && _classificacoes.length > 0 && (
+            <div className="bg-white shadow-md rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Tag className="w-5 h-5 mr-2 text-purple-500" />
+                Classificações ({_classificacoes.length})
+              </h2>
+              
+              <div className="space-y-2">
+                {_classificacoes.map((classificacao, index) => (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        classificacao.tipo === 'RECEITA' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {classificacao.tipo}
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {classificacao.descricao}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )} */}
         </div>
 
         {/* Sidebar */}

@@ -159,6 +159,12 @@ database_backup.sql
 migrations/versions/*.py
 !migrations/versions/__init__.py
 
+# Docker volumes e dados persistentes
+postgres_data/
+.postgres-data/
+pgdata/
+**/postgres_data/
+
 # Uploads e arquivos processados
 uploads/
 files/

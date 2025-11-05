@@ -55,19 +55,17 @@ export interface DadosExtraidosPDF {
 
 // Response do processamento
 export interface ProcessamentoPDFResponse {
-  sucesso: boolean;
+  success: boolean;
+  message: string;
   dados_extraidos?: DadosExtraidosPDF;
   verificacoes?: VerificacoesDados;
-  registros_criados?: RegistrosCriados;
-  erro?: string;
-  tempo_processamento: number; // segundos
   // Propriedades para notas fiscais duplicadas
   is_duplicate?: boolean;
   duplicate_message?: string;
   existing_movement_id?: number;
 }
 
-// Registros criados automaticamente
+// Registros criados automaticamente (deprecated - agora é manual)
 export interface RegistrosCriados {
   supplier_created?: boolean;
   billed_person_created?: boolean;
@@ -81,34 +79,27 @@ export interface RegistrosCriados {
 
 // Verificações de dados
 export interface VerificacoesDados {
-  supplier: VerificacaoFornecedor;
-  billed_person: VerificacaoFaturado;
-  expenses: VerificacaoClassificacao[];
-}
-
-export interface VerificacaoFornecedor {
-  exists: boolean;
-  message: string;
-  id?: string;
-  company_name?: string;
-  tax_id?: string;
-}
-
-export interface VerificacaoFaturado {
-  exists: boolean;
-  message: string;
-  id?: string;
-  full_name?: string;
-  document_id?: string;
-}
-
-export interface VerificacaoClassificacao {
-  exists: boolean;
-  message: string;
-  id?: string;
-  category?: string;
-  description?: string;
-  confidence?: number;
+  fornecedor: {
+    exists: boolean;
+    id: number | null;
+    razao_social: string;
+    cnpj: string;
+    acao: string;
+  };
+  faturado?: {
+    exists: boolean;
+    id: number | null;
+    nome_completo: string | null;
+    cpf: string | null;
+    acao: string;
+  } | null;
+  classificacoes: Array<{
+    exists: boolean;
+    id: number | null;
+    categoria: string;
+    descricao: string;
+    confianca: number;
+  }>;
 }
 
 // Estados do processamento
