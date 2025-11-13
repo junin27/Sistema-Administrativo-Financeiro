@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { AxiosError } from 'axios';
 
 export interface Pessoa {
   id?: number;
@@ -54,7 +55,7 @@ export interface PessoasListResponse {
 }
 
 class PessoasService {
-  private baseUrl = '/api/v1/pessoas';
+  private baseUrl = '/pessoas';
 
   async getAll(params?: {
     page?: number;
@@ -103,8 +104,9 @@ class PessoasService {
     try {
       const response = await api.get(`${this.baseUrl}/documento/${documento}`);
       return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      const err = error as AxiosError;
+      if (err.response?.status === 404) {
         return null;
       }
       throw error;

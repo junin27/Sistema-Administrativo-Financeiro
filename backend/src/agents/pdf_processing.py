@@ -1221,6 +1221,7 @@ class PDFProcessingService:
                     
                     parcela_data = {
                         "identificacao": identificacao,
+                        "numero_parcela": parcela.numero_parcela,
                         "valorparcela": float(parcela.valor_parcela),
                         "datavencimento": parcela.data_vencimento,
                         "statusparcela": "PENDENTE",
@@ -1236,6 +1237,7 @@ class PDFProcessingService:
                 identificacao = f"{dados_extraidos.numero_nota_fiscal}-P01"
                 parcela_data = {
                     "identificacao": identificacao,
+                    "numero_parcela": 1,
                     "valorparcela": float(dados_extraidos.valor_total),
                     "datavencimento": dados_extraidos.data_emissao,
                     "statusparcela": "PENDENTE",

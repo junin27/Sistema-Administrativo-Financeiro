@@ -18,7 +18,8 @@ import {
   TrendingDown,
   UserCheck,
   ArrowUpDown,
-  Calendar
+  Calendar,
+  Search
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -45,6 +46,7 @@ const navigation: NavItem[] = [
   { name: 'Tipos de Despesa', href: '/tipos-despesa', icon: Tags },
   { name: 'Tipos de Receita', href: '/tipos-receita', icon: Receipt },
   { name: 'Processar PDF', href: '/processar-pdf', icon: FileText },
+  { name: 'Consulta RAG', href: '/rag', icon: Search },
 ];
 
 export function Layout({ children }: LayoutProps) {

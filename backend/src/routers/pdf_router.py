@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from ..config.database import get_db
-from ..agent import OrchestratorAgent  # Nova arquitetura
+from ..agents.orchestrator.orchestrator_agent import OrchestratorAgent
 from ..schemas.pdf_processing import ProcessamentoPDFResponseSchema
 from ..core.exceptions import DuplicateInvoiceError
 
@@ -97,8 +97,8 @@ async def analisar_pdf_sem_salvar(
         temp_path = _save_temp_file(content, file.filename or "upload.pdf")
         
         # APENAS ANALISAR - NÃO SALVAR
-        from ..agent.pdf_analyzer import PDFAnalyzerAgent
-        from ..agent.data_analyzer import DataAnalyzerAgent
+        from ..agents.pdf_analyzer.pdf_analyzer_agent import PDFAnalyzerAgent
+        from ..agents.data_analyzer.data_analyzer_agent import DataAnalyzerAgent
         
         pdf_analyzer = PDFAnalyzerAgent()
         data_analyzer = DataAnalyzerAgent(db)
@@ -763,6 +763,7 @@ async def salvar_dados_analisados(
             identificacao = f"{dados_pdf.numero_nota_fiscal}-P{parcela.numero_parcela:02d}"
             parcela_data = ParcelasContasCreate(
                 identificacao=identificacao,
+                numero_parcela=parcela.numero_parcela,
                 valorparcela=float(parcela.valor_parcela),
                 datavencimento=parcela.data_vencimento,
                 statusparcela="PENDENTE",

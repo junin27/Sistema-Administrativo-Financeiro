@@ -11,7 +11,8 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import movimentosService, { MovimentoConta } from '../../services/movimentosService';
@@ -28,6 +29,10 @@ const MovimentoDetalhes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingParcelas, setLoadingParcelas] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showGerarParcelas, setShowGerarParcelas] = useState(false);
+  const [numeroParcelas, setNumeroParcelas] = useState(1);
+  const [primeiroVencimento, setPrimeiroVencimento] = useState<string>('');
+  const [intervaloMeses, setIntervaloMeses] = useState<number>(1);
 
   useEffect(() => {
     if (id) {
@@ -72,6 +77,21 @@ const MovimentoDetalhes: React.FC = () => {
       }
     } catch (err: any) {
       toast.error('Erro ao marcar parcela como paga');
+    }
+  };
+
+  const handleGerarParcelas = async () => {
+    if (!id) return;
+    try {
+      const opts: any = {};
+      if (primeiroVencimento) opts.primeiro_vencimento = primeiroVencimento;
+      if (intervaloMeses) opts.intervalo_meses = intervaloMeses;
+      await parcelasService.gerarParcelas(parseInt(id), numeroParcelas, opts);
+      toast.success('Parcelas geradas com sucesso!');
+      setShowGerarParcelas(false);
+      loadParcelas(parseInt(id));
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Erro ao gerar parcelas');
     }
   };
 
@@ -348,6 +368,13 @@ const MovimentoDetalhes: React.FC = () => {
                 <DollarSign className="w-5 h-5 mr-2 text-blue-500" />
                 Parcelas ({parcelas.length})
               </h2>
+              <button
+                onClick={() => setShowGerarParcelas(true)}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Gerar Parcelas
+              </button>
             </div>
             
             <ParcelasList 
@@ -355,6 +382,61 @@ const MovimentoDetalhes: React.FC = () => {
               onMarcarPaga={handleMarcarParcelaPaga}
               loading={loadingParcelas}
             />
+
+            {showGerarParcelas && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                  <h3 className="text-lg font-semibold mb-4">Gerar Parcelas</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Número de Parcelas</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={numeroParcelas}
+                        onChange={(e) => setNumeroParcelas(parseInt(e.target.value || '1'))}
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Primeiro Vencimento</label>
+                      <input
+                        type="date"
+                        value={primeiroVencimento}
+                        onChange={(e) => setPrimeiroVencimento(e.target.value)}
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Intervalo (meses)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={intervaloMeses}
+                        onChange={(e) => setIntervaloMeses(parseInt(e.target.value || '1'))}
+                        className="input-field"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowGerarParcelas(false)}
+                      className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleGerarParcelas}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Gerar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Classificações - TODO: Implementar */}

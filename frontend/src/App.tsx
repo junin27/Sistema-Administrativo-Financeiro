@@ -20,6 +20,7 @@ import MovimentoDetalhes from './pages/movimentos/MovimentoDetalhes';
 import Movimentos from './pages/movimentos/Movimentos';
 import MovimentoForm from './pages/movimentos/MovimentoForm';
 import { Parcelas } from './pages/parcelas/Parcelas';
+import { RagConsulta } from './pages/rag/RagConsulta';
 
 // Configuração do React Query
 const queryClient = new QueryClient({
@@ -64,6 +65,9 @@ export function App() {
               
               {/* Parcelas */}
               <Route path="/parcelas" element={<Parcelas />} />
+
+              {/* Consulta RAG */}
+              <Route path="/rag" element={<RagConsulta />} />
             </Routes>
           </Layout>
           

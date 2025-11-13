@@ -15,7 +15,8 @@ from ..schemas.parcelas_schemas import (
     ParcelasContasCreate, 
     ParcelasContasUpdate, 
     ParcelasContasResponse,
-    ParcelasContasWithMovimento
+    ParcelasContasWithMovimento,
+    ParcelaStatusUpdate,
 )
 
 # Router para Parcelas
@@ -46,10 +47,16 @@ async def create_parcela(
 async def list_parcelas(
     skip: int = Query(0, ge=0, description="Número de registros a pular"),
     limit: int = Query(50, ge=1, le=100, description="Limite de registros"),
+    status: Optional[str] = Query(None, description="Filtrar por status da parcela"),
+    movimento_id: Optional[int] = Query(None, description="Filtrar por ID do movimento"),
     db: Session = Depends(get_db)
 ):
     """Lista todas as parcelas com paginação."""
     repo = ParcelasContasRepository(db)
+    if status:
+        return repo.find_by_status(status)[:limit]
+    if movimento_id:
+        return repo.find_by_movimento(movimento_id)[:limit]
     return repo.get_all(skip=skip, limit=limit)
 
 
@@ -133,20 +140,20 @@ async def update_parcela(
 @parcelas_router.patch("/{parcela_id}/status", response_model=ParcelasContasResponse)
 async def update_parcela_status(
     parcela_id: int,
-    novo_status: str = Query(..., description="Novo status da parcela"),
+    payload: ParcelaStatusUpdate,
     db: Session = Depends(get_db)
 ):
-    """Atualiza apenas o status de uma parcela."""
+    """Atualiza status e, se aplicável, data de pagamento."""
     repo = ParcelasContasRepository(db)
-    
-    parcela = repo.update_status(parcela_id, novo_status)
-    
+
+    parcela = repo.update_status(parcela_id, payload.status, payload.datapagamento)
+
     if not parcela:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Parcela não encontrada"
         )
-    
+
     return parcela
 
 

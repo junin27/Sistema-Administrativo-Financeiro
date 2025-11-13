@@ -86,7 +86,7 @@ export interface MovimentoResumo {
 }
 
 class MovimentosService {
-  private baseUrl = '/api/v1/movimentos';
+  private baseUrl = '/movimentos';
 
   async getAll(params?: {
     page?: number;

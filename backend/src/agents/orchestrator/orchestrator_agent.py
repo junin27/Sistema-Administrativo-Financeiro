@@ -281,6 +281,7 @@ class OrchestratorAgent:
             parcela_data = ParcelasContasCreate(
                 MovimentoContas_idMovimentoContas=movimento_id,
                 identificacao=f"{dados_pdf.numero_nota_fiscal}-P01",
+                numero_parcela=1,
                 valorparcela=dados_pdf.valor_total,
                 datavencimento=dados_pdf.data_emissao,
                 statusparcela="PENDENTE"
@@ -293,6 +294,7 @@ class OrchestratorAgent:
             parcela_data = ParcelasContasCreate(
                 MovimentoContas_idMovimentoContas=movimento_id,
                 identificacao=f"{dados_pdf.numero_nota_fiscal}-P{i:02d}",
+                numero_parcela=i,
                 valorparcela=parcela.valor_parcela,
                 datavencimento=parcela.data_vencimento,
                 statusparcela="PENDENTE"

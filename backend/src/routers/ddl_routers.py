@@ -10,6 +10,7 @@ from math import ceil
 
 from ..config.database import get_db
 from ..repositories.ddl_repositories import PessoasRepository, MovimentoContasRepository
+from ..repositories.parcelas_repository import ParcelasContasRepository
 from ..models.ddl_models import MovimentoContas  # Adicionando import do modelo MovimentoContas
 from ..core.exceptions import DuplicateInvoiceError
 from ..schemas.ddl_schemas import (
@@ -17,6 +18,7 @@ from ..schemas.ddl_schemas import (
     MovimentoContasCreate, MovimentoContasUpdate, MovimentoContasResponse, 
     MovimentoContasListResponse, MovimentoContasFilter, MovimentoContasResumo
 )
+from ..schemas.parcelas_schemas import ParcelasContasResponse, GerarParcelasRequest
 
 # Router para Pessoas
 pessoas_router = APIRouter(prefix="/pessoas", tags=["Pessoas"])
@@ -463,6 +465,83 @@ async def reativar_movimento(
     
     reativado = repo.reactivate(movimento_id)
     return reativado
+
+
+@movimento_router.post("/{movimento_id}/gerar-parcelas", response_model=List[ParcelasContasResponse])
+async def gerar_parcelas_para_movimento(
+    movimento_id: int,
+    payload: GerarParcelasRequest,
+    db: Session = Depends(get_db)
+):
+    """Gera parcelas automaticamente para um movimento existente.
+    - Identificação: <numeronotafiscal>-PXX
+    - Valor: dividido igualmente, ajustando o último pela diferença de arredondamento
+    - Vencimentos: mensais, a partir de primeiro_vencimento ou data de emissão
+    """
+    mov_repo = MovimentoContasRepository(db)
+    parc_repo = ParcelasContasRepository(db)
+
+    movimento = mov_repo.get_by_id(movimento_id)
+    if not movimento:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movimento não encontrado")
+
+    if not getattr(movimento, 'valortotal', None):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Movimento sem valor total para gerar parcelas")
+
+    # Base de vencimento
+    from datetime import date
+    base_venc = payload.primeiro_vencimento or getattr(movimento, 'dataemissao', None) or date.today()
+
+    # Função util para adicionar meses sem libs externas
+    def add_months(d: date, months: int) -> date:
+        m = d.month - 1 + months
+        y = d.year + m // 12
+        m = m % 12 + 1
+        # Ajusta dia para evitar overflow (ex: 31 em fevereiro)
+        from calendar import monthrange
+        day = min(d.day, monthrange(y, m)[1])
+        return date(y, m, day)
+
+    # Particionar valor total
+    from decimal import Decimal, ROUND_HALF_UP
+    total = Decimal(str(movimento.valortotal))
+    n = payload.numero_parcelas
+    intervalo = payload.intervalo_meses or 1
+    valor_base = (total / Decimal(n)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    # Verificar existentes para continuar numeração
+    existentes = parc_repo.find_by_movimento(movimento_id)
+    start_idx = 1
+    if existentes:
+        # Usa o maior numero_parcela existente + 1
+        max_num = max([p.numero_parcela or 0 for p in existentes])
+        start_idx = max_num + 1 if max_num > 0 else len(existentes) + 1
+
+    parcelas_data = []
+    acumulado = Decimal('0.00')
+    for i in range(n):
+        numero = start_idx + i
+        venc = add_months(base_venc, i * intervalo)
+        ident = f"{getattr(movimento, 'numeronotafiscal', 'MOV')}-P{numero:02d}"
+
+        # Ajustar última parcela pelo restante
+        if i < n - 1:
+            valor = valor_base
+            acumulado += valor
+        else:
+            valor = (total - acumulado).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        parcelas_data.append({
+            "identificacao": ident,
+            "numero_parcela": numero,
+            "valorparcela": float(valor),
+            "datavencimento": venc,
+            "statusparcela": "PENDENTE",
+            "MovimentoContas_idMovimentoContas": movimento_id,
+        })
+
+    criadas = parc_repo.create_many(parcelas_data)
+    return criadas
 
 
 @movimento_router.get("/inativos/list", response_model=MovimentoContasListResponse)

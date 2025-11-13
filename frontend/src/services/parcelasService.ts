@@ -27,6 +27,26 @@ export interface PaginationResponse<T> {
 
 const parcelasService = {
   /**
+   * Normaliza o objeto vindo do backend para o tipo Parcela do frontend
+   */
+  normalizeParcela(payload: any): Parcela {
+    return {
+      idParcelasContas: payload.idParcelasContas,
+      MovimentoContas_idMovimentoContas: payload.MovimentoContas_idMovimentoContas,
+      identificacao: payload.identificacao,
+      numero_parcela: payload.numero_parcela,
+      valorparcela: payload.valorparcela,
+      valorpago: payload.valorpago,
+      valorsaldo: payload.valorsaldo,
+      datavencimento: payload.datavencimento,
+      datapagamento: payload.datapagamento,
+      status: payload.status ?? payload.statusparcela,
+      deleted_at: payload.deleted_at,
+      created_at: payload.created_at,
+      updated_at: payload.updated_at,
+    } as Parcela;
+  },
+  /**
    * Lista todas as parcelas com filtros e paginação
    */
   async list(filters?: ParcelaFilter): Promise<PaginationResponse<Parcela>> {
@@ -40,74 +60,78 @@ const parcelasService = {
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.per_page) params.append('per_page', filters.per_page.toString());
 
-    const response = await api.get<PaginationResponse<Parcela>>(`${BASE_URL}?${params.toString()}`);
-    return response.data;
+    const response = await api.get(`${BASE_URL}?${params.toString()}`);
+    const data = response.data as PaginationResponse<any>;
+    return {
+      ...data,
+      items: (data.items || []).map((p: any) => this.normalizeParcela(p))
+    };
   },
 
   /**
    * Lista todas as parcelas (paginado) - backward compatibility
    */
   async getAll(skip: number = 0, limit: number = 100): Promise<Parcela[]> {
-    const response = await api.get<Parcela[]>(BASE_URL, {
+    const response = await api.get(BASE_URL, {
       params: { skip, limit }
     });
-    return response.data;
+    return (response.data as any[]).map((p) => this.normalizeParcela(p));
   },
 
   /**
    * Lista parcelas de um movimento específico
    */
   async getByMovimento(movimentoId: number): Promise<Parcela[]> {
-    const response = await api.get<Parcela[]>(`${BASE_URL}/movimento/${movimentoId}`);
-    return response.data;
+    const response = await api.get(`${BASE_URL}/movimento/${movimentoId}`);
+    return (response.data as any[]).map((p) => this.normalizeParcela(p));
   },
 
   /**
    * Lista parcelas vencidas
    */
   async getVencidas(): Promise<Parcela[]> {
-    const response = await api.get<Parcela[]>(`${BASE_URL}/vencidas`);
-    return response.data;
+    const response = await api.get(`${BASE_URL}/vencidas`);
+    return (response.data as any[]).map((p) => this.normalizeParcela(p));
   },
 
   /**
    * Lista parcelas a vencer
    */
   async getAVencer(): Promise<Parcela[]> {
-    const response = await api.get<Parcela[]>(`${BASE_URL}/a-vencer`);
-    return response.data;
+    const response = await api.get(`${BASE_URL}/a-vencer`);
+    return (response.data as any[]).map((p) => this.normalizeParcela(p));
   },
 
   /**
    * Busca parcela por ID
    */
   async getById(id: number): Promise<Parcela> {
-    const response = await api.get<Parcela>(`${BASE_URL}/${id}`);
-    return response.data;
+    const response = await api.get(`${BASE_URL}/${id}`);
+    return this.normalizeParcela(response.data);
   },
 
   /**
    * Cria nova parcela
    */
   async create(data: ParcelaCreate): Promise<Parcela> {
-    const response = await api.post<Parcela>(BASE_URL, data);
-    return response.data;
+    const response = await api.post(BASE_URL, data);
+    return this.normalizeParcela(response.data);
   },
 
   /**
    * Atualiza parcela
    */
   async update(id: number, data: ParcelaUpdate): Promise<Parcela> {
-    const response = await api.put<Parcela>(`${BASE_URL}/${id}`, data);
-    return response.data;
+    const response = await api.put(`${BASE_URL}/${id}`, data);
+    return this.normalizeParcela(response.data);
   },
 
   /**
    * Atualiza apenas o status da parcela
    */
   async updateStatus(id: number, status: ParcelaStatus): Promise<Parcela> {
-    const response = await api.patch<Parcela>(`${BASE_URL}/${id}/status`, { status });
-    return response.data;
+    const response = await api.patch(`${BASE_URL}/${id}/status`, { status });
+    return this.normalizeParcela(response.data);
   },
 
   /**
@@ -115,11 +139,11 @@ const parcelasService = {
    */
   async marcarComoPaga(id: number, dataPagamento?: string): Promise<Parcela> {
     const data = dataPagamento || new Date().toISOString().split('T')[0];
-    const response = await api.patch<Parcela>(`${BASE_URL}/${id}/status`, {
+    const response = await api.patch(`${BASE_URL}/${id}/status`, {
       status: 'PAGA',
       datapagamento: data
     });
-    return response.data;
+    return this.normalizeParcela(response.data);
   },
 
   /**
@@ -150,11 +174,17 @@ const parcelasService = {
   /**
    * Gerar parcelas automaticamente para um movimento
    */
-  async gerarParcelas(movimentoId: number, numeroParcelas: number): Promise<Parcela[]> {
-    const response = await api.post<Parcela[]>(`/movimentos/${movimentoId}/gerar-parcelas`, {
-      numero_parcelas: numeroParcelas
-    });
-    return response.data;
+  async gerarParcelas(
+    movimentoId: number,
+    numeroParcelas: number,
+    options?: { primeiro_vencimento?: string; intervalo_meses?: number }
+  ): Promise<Parcela[]> {
+    const payload: any = { numero_parcelas: numeroParcelas };
+    if (options?.primeiro_vencimento) payload.primeiro_vencimento = options.primeiro_vencimento;
+    if (options?.intervalo_meses) payload.intervalo_meses = options.intervalo_meses;
+
+    const response = await api.post<any[]>(`/movimentos/${movimentoId}/gerar-parcelas`, payload);
+    return (response.data || []).map((p) => this.normalizeParcela(p));
   },
 
   /**

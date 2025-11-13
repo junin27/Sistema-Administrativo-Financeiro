@@ -246,6 +246,8 @@ export interface Parcela {
   identificacao: string;
   numero_parcela: number;
   valorparcela: number;
+  valorpago?: number;
+  valorsaldo?: number;
   datavencimento: string;
   datapagamento?: string;
   status: ParcelaStatus;
@@ -259,6 +261,8 @@ export interface ParcelaCreate {
   identificacao: string;
   numero_parcela: number;
   valorparcela: number;
+  valorpago?: number;
+  valorsaldo?: number;
   datavencimento: string;
   datapagamento?: string;
   status?: ParcelaStatus;
@@ -268,6 +272,8 @@ export interface ParcelaUpdate {
   identificacao?: string;
   numero_parcela?: number;
   valorparcela?: number;
+  valorpago?: number;
+  valorsaldo?: number;
   datavencimento?: string;
   datapagamento?: string;
   status?: ParcelaStatus;

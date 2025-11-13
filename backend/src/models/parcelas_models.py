@@ -15,21 +15,29 @@ class ParcelasContas(Base):
     Armazena as parcelas de contas a pagar ou receber.
     """
     __tablename__ = "parcelas_contas"
-    
+
     idParcelasContas = Column(Integer, primary_key=True, autoincrement=True)
-    identificacao = Column(String(45), nullable=False, unique=True, 
-                          comment="Identificação única da parcela")
-    valorparcela = Column(Numeric(10, 2), nullable=True, 
-                         comment="Valor da parcela")
-    datavencimento = Column(Date, nullable=True, 
-                           comment="Data de vencimento da parcela")
-    statusparcela = Column(String(45), nullable=True, 
-                          comment="Status da parcela (pendente, paga, vencida, etc)")
-    
+    identificacao = Column(String(45), nullable=False, unique=True,
+                           comment="Identificação única da parcela")
+    numero_parcela = Column(Integer, nullable=True,
+                            comment="Número sequencial da parcela dentro do movimento")
+    valorparcela = Column(Numeric(15, 2), nullable=True,
+                          comment="Valor da parcela")
+    valorpago = Column(Numeric(15, 2), nullable=True, default=0,
+                       comment="Valor pago na parcela")
+    valorsaldo = Column(Numeric(15, 2), nullable=True, default=0,
+                        comment="Saldo restante da parcela (valorparcela - valorpago)")
+    datavencimento = Column(Date, nullable=True,
+                            comment="Data de vencimento da parcela")
+    datapagamento = Column(Date, nullable=True,
+                           comment="Data de pagamento da parcela")
+    statusparcela = Column(String(45), nullable=True,
+                           comment="Status da parcela (PENDENTE, PAGA, VENCIDA, etc)")
+
     # Chave estrangeira
     MovimentoContas_idMovimentoContas = Column(
-        Integer, 
-        ForeignKey('movimento_contas.idMovimentoContas'), 
+        Integer,
+        ForeignKey('movimento_contas.idMovimentoContas'),
         nullable=False,
         comment="FK para MovimentoContas"
     )
@@ -47,4 +55,8 @@ class ParcelasContas(Base):
     )
     
     def __repr__(self) -> str:
-        return f"<ParcelasContas(idParcelasContas={self.idParcelasContas}, identificacao='{self.identificacao}', valor={self.valorparcela})>"
+        return (
+            f"<ParcelasContas(idParcelasContas={self.idParcelasContas}, "
+            f"identificacao='{self.identificacao}', numero_parcela={self.numero_parcela}, "
+            f"valor={self.valorparcela}, pago={self.valorpago}, saldo={self.valorsaldo})>"
+        )

@@ -122,6 +122,57 @@ def init_db() -> None:
     
     # Criar todas as tabelas usando Base.metadata
     Base.metadata.create_all(bind=engine)
+
+    # Executar migrações básicas para garantir consistência do schema em instalações existentes
+    try:
+        run_basic_migrations()
+        logger.info("✅ Migrações básicas aplicadas com sucesso!")
+    except Exception as e:
+        logger.warning(f"⚠️ Falha ao aplicar migrações básicas automaticamente: {e}")
     
     logger.info("✅ Tabelas criadas com sucesso!")
     logger.info(f"📊 Tabelas disponíveis: {list(Base.metadata.tables.keys())}")
+
+
+def run_basic_migrations() -> None:
+    """Aplica migrações básicas diretamente via SQL para garantir colunas/índices críticos.
+    Usado quando Alembic não está configurado ou em ambientes onde create_all não altera schema.
+    """
+    db_url = settings.database_url
+    if not db_url.startswith("postgresql"):
+        # Em SQLite, create_all já cobre; skip alterações diretas
+        return
+
+    with engine.begin() as conn:
+        # Garantir colunas essenciais em parcelas_contas
+        # numero_parcela
+        col_exists = conn.execute(text(
+            """
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='parcelas_contas' AND column_name='numero_parcela'
+            """
+        )).fetchone()
+        if not col_exists:
+            conn.execute(text("ALTER TABLE parcelas_contas ADD COLUMN numero_parcela INTEGER"))
+            logger.info("➕ Coluna 'numero_parcela' adicionada em parcelas_contas")
+
+        # valorsaldo
+        col_exists = conn.execute(text(
+            """
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='parcelas_contas' AND column_name='valorsaldo'
+            """
+        )).fetchone()
+        if not col_exists:
+            conn.execute(text("ALTER TABLE parcelas_contas ADD COLUMN valorsaldo NUMERIC(15,2) DEFAULT 0"))
+            logger.info("➕ Coluna 'valorsaldo' adicionada em parcelas_contas")
+
+        # Índice único para identificacao (caso não exista)
+        idx_exists = conn.execute(text(
+            """
+            SELECT 1 FROM pg_indexes WHERE tablename='parcelas_contas' AND indexname='idx_identificacao_unique'
+            """
+        )).fetchone()
+        if not idx_exists:
+            conn.execute(text("CREATE UNIQUE INDEX idx_identificacao_unique ON parcelas_contas (identificacao)"))
+            logger.info("🔒 Índice único 'idx_identificacao_unique' criado em identificacao")

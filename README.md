@@ -1556,6 +1556,71 @@ POST   /api/v1/pdf/processar           - Upload e processar PDF
 
 ---
 
+## 📌 Atualizações Recentes: Parcelas e RAG
+
+### 🧮 Parcelas: geração automática e regras funcionais
+- Endpoint: `POST /api/v1/parcelas/gerar` (router: `gerar_parcelas_para_movimento`).
+- Regras implementadas:
+  - Valida existência do movimento e do `valortotal`.
+  - Determina data base de vencimento a partir do payload, `dataemissao` do movimento, ou data atual.
+  - Ajuste mensal de datas com preservação do dia quando possível.
+  - Divide o valor igualmente; a última parcela recebe o ajuste de arredondamento.
+  - Continua a numeração a partir do maior `numero_parcela` já existente.
+  - Gera `identificacao` no formato `<numero_nota_fiscal>-PXX` (ex.: `NF-123-P01`).
+  - Define `statusparcela = "PENDENTE"` e calcula `valorsaldo`.
+  - Criação em lote (`create_many`) para eficiência.
+
+- Observações:
+  - A `identificacao` é única por índice; se o movimento não possuir `numero_nota_fiscal`, defina um identificador consistente para evitar colisões (ex.: `MOV<id>-PXX`).
+
+- Exemplo de requisição:
+  ```json
+  {
+    "movimento_id": 42,
+    "numero_parcelas": 3,
+    "primeiro_vencimento": "2025-01-15",
+    "intervalo_meses": 1
+  }
+  ```
+
+### 🤖 Consulta Inteligente (RAG)
+- Endpoints:
+  - `POST /api/v1/rag/simple`
+  - `POST /api/v1/rag/embeddings/query`
+
+- Payload:
+  ```json
+  { "question": "Quais as parcelas pendentes deste mês?" }
+  ```
+
+- Resposta (exemplo):
+  ```json
+  {
+    "answer": "...texto com a resposta elaborada...",
+    "strategy": "RAG Simples",
+    "sources": [
+      { "title": "parcela.txt", "snippet": "regras de geração de parcelas", "score": 0.87 }
+    ],
+    "meta": { "consulta": "parcelas pendentes", "total_encontrado": 12 }
+  }
+  ```
+
+- Estratégias:
+  - "RAG Simples": consulta direta aos repositórios (Pessoas, Movimentos, Parcelas) para estatísticas e respostas estruturadas.
+  - "RAG Embeddings": índice leve baseado em documentos locais (`parcela.txt`, modelos e schemas) com similaridade cosseno e elaboração por LLM quando disponível.
+
+- Frontend:
+  - Página: `Consulta RAG` (`/rag`) com seleção de estratégia e campo de pergunta.
+  - Serviço: `frontend/src/services/ragService.ts` com `askSimple` e `askEmbeddings`.
+  - Menu lateral: item "Consulta RAG".
+
+- Exemplo com `curl`:
+  ```bash
+  curl -X POST http://localhost:8000/api/v1/rag/simple \
+    -H "Content-Type: application/json" \
+    -d '{"question":"Como funciona a geração de parcelas?"}'
+  ```
+
 ## 👨‍💻 Desenvolvido por
 
 Gilberto Junior - [@junin27](https://github.com/junin27)

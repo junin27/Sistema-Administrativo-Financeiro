@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     )
     
     # Google Gemini AI Configuration
-    gemini_api_key: str = Field(default="AIzaSyCXSU2TYbAer2tVkMWK4ksmQcs2VYceoaQ", description="Chave da API do Google Gemini")
+    gemini_api_key: str = Field(default="", description="Chave da API do Google Gemini")
+    gemini_model: str = Field(default="gemini-2.0-flash-exp", description="Modelo do Google Gemini")
     
     # Application Configuration
     app_name: str = Field(default="Sistema Administrativo Financeiro")

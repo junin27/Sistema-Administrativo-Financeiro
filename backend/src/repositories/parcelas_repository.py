@@ -22,6 +22,11 @@ class ParcelasContasRepository:
     
     def create(self, parcela_data: dict) -> ParcelasContas:
         """Cria uma nova parcela."""
+        # Garantir consistência de valores
+        valorparcela = parcela_data.get("valorparcela") or 0
+        valorpago = parcela_data.get("valorpago") or 0
+        parcela_data["valorsaldo"] = max((valorparcela or 0) - (valorpago or 0), 0)
+
         parcela = ParcelasContas(**parcela_data)
         self.db.add(parcela)
         self.db.commit()
@@ -30,7 +35,14 @@ class ParcelasContasRepository:
     
     def create_many(self, parcelas_data: List[dict]) -> List[ParcelasContas]:
         """Cria múltiplas parcelas de uma vez."""
-        parcelas = [ParcelasContas(**data) for data in parcelas_data]
+        parcelas = []
+        for data in parcelas_data:
+            # Garantir consistência de valores
+            valorparcela = data.get("valorparcela") or 0
+            valorpago = data.get("valorpago") or 0
+            data["valorsaldo"] = max((valorparcela or 0) - (valorpago or 0), 0)
+
+            parcelas.append(ParcelasContas(**data))
         self.db.add_all(parcelas)
         self.db.commit()
         for parcela in parcelas:
@@ -54,6 +66,10 @@ class ParcelasContasRepository:
             for key, value in parcela_data.items():
                 if value is not None:  # Apenas atualizar valores não-nulos
                     setattr(parcela, key, value)
+            # Recalcular saldo se valores forem alterados
+            valorparcela = parcela.valorparcela or 0
+            valorpago = parcela.valorpago or 0
+            parcela.valorsaldo = max(valorparcela - valorpago, 0)
             self.db.commit()
             self.db.refresh(parcela)
         return parcela
@@ -117,9 +133,24 @@ class ParcelasContasRepository:
             )
         ).order_by(ParcelasContas.datavencimento).all()
     
-    def update_status(self, parcela_id: int, novo_status: str) -> Optional[ParcelasContas]:
-        """Atualiza apenas o status de uma parcela."""
-        return self.update(parcela_id, {"statusparcela": novo_status})
+    def update_status(self, parcela_id: int, novo_status: str, datapagamento: Optional[date] = None) -> Optional[ParcelasContas]:
+        """Atualiza status e ajusta dados correlatos (pagamento/saldo)."""
+        parcela = self.get_by_id(parcela_id)
+        if not parcela:
+            return None
+        parcela.statusparcela = novo_status
+        # Se marcar como PAGA, ajustar valores
+        if novo_status and novo_status.upper() == 'PAGA':
+            parcela.valorpago = parcela.valorparcela or 0
+            parcela.valorsaldo = 0
+            parcela.datapagamento = datapagamento or date.today()
+        elif novo_status and novo_status.upper() != 'PAGA':
+            # Se não estiver paga, não definir data de pagamento automaticamente
+            if datapagamento is not None:
+                parcela.datapagamento = datapagamento
+        self.db.commit()
+        self.db.refresh(parcela)
+        return parcela
     
     def get_total_valor_movimento(self, movimento_id: int) -> float:
         """Calcula o total das parcelas de um movimento."""
