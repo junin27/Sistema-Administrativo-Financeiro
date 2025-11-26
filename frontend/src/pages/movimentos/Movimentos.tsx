@@ -25,7 +25,7 @@ const Movimentos: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<MovimentoContaFilter>({});
   const [showFilters] = useState(true);
-  const [statusSelected, setStatusSelected] = useState(false);
+  const [hasActiveFilters, setHasActiveFilters] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
   const pageSize = 10;
@@ -58,21 +58,54 @@ const Movimentos: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (statusSelected) {
-      loadMovimentos(1, filters, showInactive);
-    } else {
-      setMovimentos([]);
-      setTotalPages(1);
-      setTotal(0);
-      setLoading(false);
+    // Verifica se há algum filtro ativo
+    const hasFilters = !!(
+      filters.numeronotafiscal ||
+      filters.tipo ||
+      filters.status ||
+      filters.fornecedor_id ||
+      filters.data_emissao_inicio ||
+      filters.data_emissao_fim ||
+      filters.data_vencimento_inicio ||
+      filters.data_vencimento_fim
+    );
+    
+    setHasActiveFilters(hasFilters);
+    
+    // Debounce para campos de texto (numeronotafiscal)
+    const isTextFilter = !!filters.numeronotafiscal;
+    const timeoutId = isTextFilter 
+      ? setTimeout(() => {
+          if (hasFilters) {
+            loadMovimentos(1, filters, showInactive);
+          } else {
+            setMovimentos([]);
+            setTotalPages(1);
+            setTotal(0);
+            setLoading(false);
+          }
+        }, 500) // 500ms de debounce para campos de texto
+      : null;
+    
+    if (!isTextFilter) {
+      // Para filtros de select e data, busca imediatamente
+      if (hasFilters) {
+        loadMovimentos(1, filters, showInactive);
+      } else {
+        setMovimentos([]);
+        setTotalPages(1);
+        setTotal(0);
+        setLoading(false);
+      }
     }
-  }, [showInactive, loadMovimentos, filters, statusSelected]);
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showInactive, loadMovimentos, filters]);
 
   const handleFilterChange = (field: keyof MovimentoContaFilter, value: string | number) => {
     const newFilters = { ...filters, [field]: value || undefined };
-    if (field === 'status') {
-      setStatusSelected(true);
-    }
     setFilters(newFilters);
   };
 
@@ -80,7 +113,7 @@ const Movimentos: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    setStatusSelected(false);
+    setHasActiveFilters(false);
     setMovimentos([]);
     setTotalPages(1);
     setTotal(0);
@@ -271,7 +304,7 @@ const Movimentos: React.FC = () => {
                   onChange={(e) => handleFilterChange('fornecedor_id', parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Selecione</option>
                   {pessoas.filter(p => p.tipo === 'FORNECEDOR' || p.tipo === 'AMBOS').map((pessoa) => (
                     <option key={pessoa.idPessoas} value={pessoa.idPessoas}>
                       {pessoa.razaosocial || pessoa.fantasia}
@@ -289,7 +322,7 @@ const Movimentos: React.FC = () => {
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Selecione</option>
                   <option value="RECEITA">Receita</option>
                   <option value="DESPESA">Despesa</option>
                 </select>
@@ -304,7 +337,7 @@ const Movimentos: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Selecione</option>
                   <option value="PENDENTE">Pendente</option>
                   <option value="PAGO">Pago</option>
                   <option value="CANCELADO">Cancelado</option>

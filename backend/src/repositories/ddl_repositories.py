@@ -146,6 +146,45 @@ class PessoasRepository:
         items = query.offset(skip).limit(limit).all()
         return items, total
     
+    def find_with_filters_paginated(
+        self, 
+        skip: int = 0, 
+        limit: int = 100,
+        tipo: Optional[str] = None,
+        status: Optional[str] = None,
+        documento: Optional[str] = None,
+        search: Optional[str] = None,
+        include_deleted: bool = False
+    ) -> tuple[List[Pessoas], int]:
+        """Busca pessoas com múltiplos filtros combinados."""
+        query = self.db.query(Pessoas)
+        
+        # Aplicar filtro de soft delete
+        if not include_deleted:
+            query = query.filter(Pessoas.deleted_at.is_(None))
+        
+        # Aplicar filtros combinados
+        if documento:
+            query = query.filter(Pessoas.documento.ilike(f"%{documento}%"))
+        
+        if search:
+            query = query.filter(
+                or_(
+                    Pessoas.razaosocial.ilike(f"%{search}%"),
+                    Pessoas.fantasia.ilike(f"%{search}%")
+                )
+            )
+        
+        if tipo:
+            query = query.filter(func.upper(Pessoas.tipo) == func.upper(tipo))
+        
+        if status:
+            query = query.filter(func.upper(Pessoas.status) == func.upper(status))
+        
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
+    
     def find_faturado_by_documento_and_name(self, documento: str, nome_completo: str) -> Optional[Pessoas]:
         """Busca pessoa faturada por documento (CPF) e nome completo."""
         return self.db.query(Pessoas).filter(
@@ -319,6 +358,55 @@ class MovimentoContasRepository:
         query = self.db.query(MovimentoContas).filter(
             MovimentoContas.Pessoas_idFornecedorCliente == fornecedor_id
         )
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
+    
+    def find_by_nota_fiscal_paginated(self, numero_nota: str, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> tuple[List[MovimentoContas], int]:
+        """Busca movimentos por número da nota fiscal com paginação (case insensitive, partial match)."""
+        query = self.db.query(MovimentoContas).filter(
+            func.upper(MovimentoContas.numeronotafiscal).ilike(f"%{func.upper(numero_nota)}%")
+        )
+        
+        if not include_deleted:
+            query = query.filter(MovimentoContas.deleted_at.is_(None))
+        
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
+    
+    def find_with_filters_paginated(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        tipo: Optional[str] = None,
+        status: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        numeronotafiscal: Optional[str] = None,
+        include_deleted: bool = False
+    ) -> tuple[List[MovimentoContas], int]:
+        """Busca movimentos com múltiplos filtros combinados."""
+        query = self.db.query(MovimentoContas)
+        
+        # Aplicar filtro de soft delete
+        if not include_deleted:
+            query = query.filter(MovimentoContas.deleted_at.is_(None))
+        
+        # Aplicar filtros combinados
+        if numeronotafiscal:
+            query = query.filter(
+                func.upper(MovimentoContas.numeronotafiscal).ilike(f"%{func.upper(numeronotafiscal)}%")
+            )
+        
+        if tipo:
+            query = query.filter(func.upper(MovimentoContas.tipo) == func.upper(tipo))
+        
+        if status:
+            query = query.filter(func.upper(MovimentoContas.status) == func.upper(status))
+        
+        if fornecedor_id:
+            query = query.filter(MovimentoContas.Pessoas_idFornecedorCliente == fornecedor_id)
+        
         total = query.count()
         items = query.offset(skip).limit(limit).all()
         return items, total

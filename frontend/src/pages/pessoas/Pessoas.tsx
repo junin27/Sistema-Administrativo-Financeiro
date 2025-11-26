@@ -12,7 +12,7 @@ const Pessoas: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<PessoaFilter>({});
   const [showFilters] = useState(true);
-  const [statusSelected, setStatusSelected] = useState(false);
+  const [hasActiveFilters, setHasActiveFilters] = useState(false);
 
   const pageSize = 10;
 
@@ -38,21 +38,51 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (statusSelected) {
-      loadPessoas(1, filters);
-    } else {
-      setPessoas([]);
-      setTotalPages(1);
-      setTotal(0);
-      setLoading(false);
+    // Verifica se há algum filtro ativo
+    const hasFilters = !!(
+      filters.documento ||
+      filters.tipo ||
+      filters.status ||
+      filters.razaosocial ||
+      filters.fantasia
+    );
+    
+    setHasActiveFilters(hasFilters);
+    
+    // Debounce para campos de texto (documento, razaosocial, fantasia)
+    const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
+    const timeoutId = isTextFilter 
+      ? setTimeout(() => {
+          if (hasFilters) {
+            loadPessoas(1, filters);
+          } else {
+            setPessoas([]);
+            setTotalPages(1);
+            setTotal(0);
+            setLoading(false);
+          }
+        }, 500) // 500ms de debounce para campos de texto
+      : null;
+    
+    if (!isTextFilter) {
+      // Para filtros de select, busca imediatamente
+      if (hasFilters) {
+        loadPessoas(1, filters);
+      } else {
+        setPessoas([]);
+        setTotalPages(1);
+        setTotal(0);
+        setLoading(false);
+      }
     }
-  }, [loadPessoas, filters, statusSelected]);
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loadPessoas, filters]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
     const newFilters = { ...filters, [field]: value || undefined };
-    if (field === 'status') {
-      setStatusSelected(true);
-    }
     setFilters(newFilters);
   };
 
@@ -60,7 +90,7 @@ const Pessoas: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    setStatusSelected(false);
+    setHasActiveFilters(false);
     setPessoas([]);
     setTotalPages(1);
     setTotal(0);
@@ -152,7 +182,7 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Selecione</option>
                   <option value="fornecedor">Fornecedor</option>
                   <option value="cliente">Cliente</option>
                 </select>
@@ -180,7 +210,7 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="">Selecione</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="INATIVO">Inativo</option>
                 </select>

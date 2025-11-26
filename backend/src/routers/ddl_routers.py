@@ -57,15 +57,16 @@ async def list_pessoas(
     repo = PessoasRepository(db)
     skip = (page - 1) * size
     
-    # Aplicar filtros
-    if documento:
-        items, total = repo.find_by_documento_paginated(documento, skip, size)
-    elif search:
-        items, total = repo.search_by_name_paginated(search, skip, size)
-    elif tipo:
-        items, total = repo.find_by_tipo_paginated(tipo, skip, size)
-    elif status:
-        items, total = repo.find_active_by_status_paginated(status, skip, size)
+    # Aplicar filtros combinados
+    if documento or search or tipo or status:
+        items, total = repo.find_with_filters_paginated(
+            skip=skip,
+            limit=size,
+            tipo=tipo,
+            status=status,
+            documento=documento,
+            search=search
+        )
     else:
         items = repo.get_all(skip=skip, limit=size)
         total = repo.count_all()
@@ -302,22 +303,28 @@ async def list_movimentos(
     tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
     status: Optional[str] = Query(None, description="Filtrar por status"),
     fornecedor_id: Optional[int] = Query(None, description="Filtrar por fornecedor"),
+    numeronotafiscal: Optional[str] = Query(None, description="Filtrar por número da nota fiscal"),
+    include_deleted: Optional[bool] = Query(False, description="Incluir registros deletados"),
     db: Session = Depends(get_db)
 ):
     """Lista movimentos com paginação e filtros."""
     repo = MovimentoContasRepository(db)
     skip = (page - 1) * size
     
-    # Aplicar filtros
-    if tipo:
-        items, total = repo.find_by_tipo_paginated(tipo, skip, size)
-    elif status:
-        items, total = repo.find_by_status_paginated(status, skip, size)
-    elif fornecedor_id:
-        items, total = repo.find_by_fornecedor_paginated(fornecedor_id, skip, size)
+    # Aplicar filtros combinados
+    if tipo or status or fornecedor_id or numeronotafiscal:
+        items, total = repo.find_with_filters_paginated(
+            skip=skip,
+            limit=size,
+            tipo=tipo,
+            status=status,
+            fornecedor_id=fornecedor_id,
+            numeronotafiscal=numeronotafiscal,
+            include_deleted=include_deleted
+        )
     else:
-        items = repo.get_all(skip=skip, limit=size)
-        total = repo.count_all()
+        items = repo.get_all(skip=skip, limit=size, include_deleted=include_deleted)
+        total = repo.count_all(include_deleted=include_deleted)
     
     # Converter models para schemas
     items_response = [MovimentoContasResponse.model_validate(item) for item in items]

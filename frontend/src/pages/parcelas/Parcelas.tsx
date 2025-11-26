@@ -286,7 +286,7 @@ export function Parcelas() {
                 onChange={(e) => { setFilters({ ...filters, status: e.target.value as ParcelaStatus }); setStatusSelected(true); }}
                 className="input-field"
               >
-                <option value="">Todos</option>
+                <option value="">Selecione</option>
                 <option value="PENDENTE">Pendente</option>
                 <option value="PAGA">Paga</option>
                 <option value="VENCIDA">Vencida</option>
