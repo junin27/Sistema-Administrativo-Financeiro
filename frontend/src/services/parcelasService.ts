@@ -162,7 +162,8 @@ const parcelasService = {
    * Cria nova parcela
    */
   async create(data: ParcelaCreate): Promise<Parcela> {
-    const response = await api.post(BASE_URL, data);
+    const path = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+    const response = await api.post(path, data);
     return this.normalizeParcela(response.data as ParcelaBackendResponse);
   },
 

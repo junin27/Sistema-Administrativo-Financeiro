@@ -68,9 +68,9 @@ class PessoasService {
     if (params?.size) queryParams.append('size', params.size.toString());
     if (params?.filters?.documento) queryParams.append('documento', params.filters.documento);
     if (params?.filters?.tipo) queryParams.append('tipo', params.filters.tipo);
-    if (params?.filters?.razaosocial) queryParams.append('razaosocial', params.filters.razaosocial);
-    if (params?.filters?.fantasia) queryParams.append('fantasia', params.filters.fantasia);
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
+    const search = params?.filters?.razaosocial || params?.filters?.fantasia;
+    if (search) queryParams.append('search', search);
 
     const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
     const response = await api.get(`${path}?${queryParams.toString()}`);
@@ -83,7 +83,8 @@ class PessoasService {
   }
 
   async create(pessoa: PessoaCreate): Promise<Pessoa> {
-    const response = await api.post(this.baseUrl, pessoa);
+    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    const response = await api.post(path, pessoa);
     return response.data;
   }
 

@@ -88,13 +88,9 @@ class MovimentosService {
     
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
-    if (params?.filters?.numeronotafiscal) queryParams.append('numeronotafiscal', params.filters.numeronotafiscal);
     if (params?.filters?.fornecedor_id) queryParams.append('fornecedor_id', params.filters.fornecedor_id.toString());
-    if (params?.filters?.faturado_id) queryParams.append('faturado_id', params.filters.faturado_id.toString());
     if (params?.filters?.tipo) queryParams.append('tipo', params.filters.tipo);
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
-    if (params?.filters?.data_emissao_inicio) queryParams.append('data_inicio', params.filters.data_emissao_inicio);
-    if (params?.filters?.data_emissao_fim) queryParams.append('data_fim', params.filters.data_emissao_fim);
     // Note: Backend filter schema has data_inicio/data_fim, not specific for emissao/vencimento. 
     // ddl_schemas.py says data_inicio/data_fim. I'll map data_emissao_inicio to data_inicio for now.
 
@@ -109,7 +105,8 @@ class MovimentosService {
   }
 
   async create(movimento: MovimentoContaCreate): Promise<MovimentoConta> {
-    const response = await api.post(this.baseUrl, movimento);
+    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    const response = await api.post(path, movimento);
     return response.data;
   }
 

@@ -26,7 +26,8 @@ import type { Parcela, ParcelaCreate, ParcelaUpdate, ParcelaStatus } from '../..
 export function Parcelas() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters] = useState(true);
+  const [statusSelected, setStatusSelected] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingParcela, setEditingParcela] = useState<Parcela | undefined>();
 
@@ -78,9 +79,14 @@ export function Parcelas() {
   };
 
   useEffect(() => {
-    loadParcelas();
+    if (statusSelected || filters.tipo) {
+      loadParcelas();
+    } else {
+      setParcelas([]);
+      setTotal(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.tipo, filters.movimentoId]);
+  }, [page, filters.tipo, filters.movimentoId, statusSelected]);
 
   // Aplicar filtros
   const applyFilters = () => {
@@ -261,15 +267,12 @@ export function Parcelas() {
           </div>
         </button>
 
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition"
-        >
+        <div className="p-4 rounded-lg border-2 border-gray-200">
           <div className="flex items-center justify-between">
             <span className="font-medium">Filtros</span>
             <Filter className="h-5 w-5 text-gray-600" />
           </div>
-        </button>
+        </div>
       </div>
 
       {/* Filtros Avançados */}
@@ -280,7 +283,7 @@ export function Parcelas() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value as ParcelaStatus })}
+                onChange={(e) => { setFilters({ ...filters, status: e.target.value as ParcelaStatus }); setStatusSelected(true); }}
                 className="input-field"
               >
                 <option value="">Todos</option>

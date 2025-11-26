@@ -24,7 +24,8 @@ const Movimentos: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<MovimentoContaFilter>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters] = useState(true);
+  const [statusSelected, setStatusSelected] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
   const pageSize = 10;
@@ -57,17 +58,24 @@ const Movimentos: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadMovimentos(1, filters, showInactive);
-  }, [showInactive, loadMovimentos, filters]);
+    if (statusSelected) {
+      loadMovimentos(1, filters, showInactive);
+    } else {
+      setMovimentos([]);
+      setTotalPages(1);
+      setTotal(0);
+    }
+  }, [showInactive, loadMovimentos, filters, statusSelected]);
 
   const handleFilterChange = (field: keyof MovimentoContaFilter, value: string | number) => {
     const newFilters = { ...filters, [field]: value || undefined };
+    if (field === 'status') {
+      setStatusSelected(true);
+    }
     setFilters(newFilters);
   };
 
-  const applyFilters = () => {
-    loadMovimentos(1, filters, showInactive);
-  };
+  
 
   const clearFilters = () => {
     setFilters({});
@@ -227,21 +235,10 @@ const Movimentos: React.FC = () => {
       {/* Filtros */}
       <div className="bg-white shadow-md rounded-lg mb-6">
         <div className="px-6 py-4 border-b border-gray-200">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center text-gray-700 hover:text-gray-900"
-          >
+          <div className="flex items-center text-gray-700">
             <Filter className="w-4 h-4 mr-2" />
-            <span className="mr-2">Filtros</span>
-            <svg
-              className={`w-4 h-4 transform transition-transform ${showFilters ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+            <span>Filtros</span>
+          </div>
         </div>
         
         {showFilters && (
@@ -361,13 +358,6 @@ const Movimentos: React.FC = () => {
             </div>
             
             <div className="flex space-x-2">
-              <button
-                onClick={applyFilters}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Aplicar Filtros
-              </button>
               <button
                 onClick={clearFilters}
                 className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"

@@ -11,7 +11,8 @@ const Pessoas: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<PessoaFilter>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters] = useState(true);
+  const [statusSelected, setStatusSelected] = useState(false);
 
   const pageSize = 10;
 
@@ -37,17 +38,24 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadPessoas(1, filters);
-  }, [loadPessoas, filters]);
+    if (statusSelected) {
+      loadPessoas(1, filters);
+    } else {
+      setPessoas([]);
+      setTotalPages(1);
+      setTotal(0);
+    }
+  }, [loadPessoas, filters, statusSelected]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
     const newFilters = { ...filters, [field]: value || undefined };
+    if (field === 'status') {
+      setStatusSelected(true);
+    }
     setFilters(newFilters);
   };
 
-  const applyFilters = () => {
-    loadPessoas(1, filters);
-  };
+  
 
   const clearFilters = () => {
     setFilters({});
@@ -111,20 +119,7 @@ const Pessoas: React.FC = () => {
       {/* Filtros */}
       <div className="bg-white shadow-md rounded-lg mb-6">
         <div className="px-6 py-4 border-b border-gray-200">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center text-gray-700 hover:text-gray-900"
-          >
-            <span className="mr-2">Filtros</span>
-            <svg
-              className={`w-4 h-4 transform transition-transform ${showFilters ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <span className="text-gray-700">Filtros</span>
         </div>
         
         {showFilters && (
@@ -188,12 +183,6 @@ const Pessoas: React.FC = () => {
             </div>
             
             <div className="flex space-x-2">
-              <button
-                onClick={applyFilters}
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Aplicar Filtros
-              </button>
               <button
                 onClick={clearFilters}
                 className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"

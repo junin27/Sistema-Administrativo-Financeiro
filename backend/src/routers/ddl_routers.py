@@ -49,6 +49,7 @@ async def list_pessoas(
     size: int = Query(50, ge=1, le=100, description="Tamanho da página"),
     tipo: Optional[str] = Query(None, description="Filtrar por tipo"),
     status: Optional[str] = Query(None, description="Filtrar por status"),
+    documento: Optional[str] = Query(None, description="Filtrar por documento"),
     search: Optional[str] = Query(None, description="Buscar por nome"),
     db: Session = Depends(get_db)
 ):
@@ -57,7 +58,9 @@ async def list_pessoas(
     skip = (page - 1) * size
     
     # Aplicar filtros
-    if search:
+    if documento:
+        items, total = repo.find_by_documento_paginated(documento, skip, size)
+    elif search:
         items, total = repo.search_by_name_paginated(search, skip, size)
     elif tipo:
         items, total = repo.find_by_tipo_paginated(tipo, skip, size)

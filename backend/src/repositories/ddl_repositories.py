@@ -74,6 +74,13 @@ class PessoasRepository:
     def find_by_documento(self, documento: str) -> Optional[Pessoas]:
         """Busca pessoa por documento."""
         return self.db.query(Pessoas).filter(Pessoas.documento == documento).first()
+
+    def find_by_documento_paginated(self, documento: str, skip: int = 0, limit: int = 100) -> tuple[List[Pessoas], int]:
+        """Busca pessoas por documento com paginação."""
+        query = self.db.query(Pessoas).filter(Pessoas.documento == documento)
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
     
     def find_by_tipo(self, tipo: str) -> List[Pessoas]:
         """Busca pessoas por tipo."""
