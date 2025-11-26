@@ -10,6 +10,8 @@ import type { ApiError } from '../types/entities';
 // Configuração base do axios
 const getBaseUrl = () => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  globalThis['console']?.debug('[API] VITE_API_URL raw:', import.meta.env.VITE_API_URL);
+  globalThis['console']?.debug('[API] window.protocol:', typeof window !== 'undefined' ? window.location.protocol : 'no-window');
   
   // Remove espaços em branco extras
   url = url.trim();
@@ -28,7 +30,7 @@ const getBaseUrl = () => {
     }
   }
   
-  console.log('API Base URL:', url); // Debug para verificar a URL final
+  globalThis['console']?.debug('[API] API Base URL:', url);
   return url;
 };
 
@@ -38,6 +40,38 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Interceptador para garantir HTTPS em todas as requisições
+api.interceptors.request.use((config) => {
+  const originalBase = config.baseURL;
+  if (config.url && !config.url.startsWith('http')) {
+    // Se a URL for relativa, o axios usa a baseURL. 
+    // Vamos garantir que a baseURL esteja correta no momento da requisição também
+    if (config.baseURL && typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      if (/^http:\/\//i.test(config.baseURL)) {
+        config.baseURL = config.baseURL.replace(/^http:\/\//i, 'https://');
+      }
+    }
+  }
+  if (originalBase !== config.baseURL) {
+    globalThis['console']?.warn('[API] baseURL forced to https:', originalBase, '->', config.baseURL);
+  }
+  globalThis['console']?.debug('[API] request config:', {
+    method: config.method,
+    baseURL: config.baseURL,
+    url: config.url,
+    fullURL: (() => {
+      try {
+        if (config.url?.startsWith('http')) return config.url;
+        if (config.baseURL) return new URL(config.url || '', config.baseURL).href;
+        return config.url;
+      } catch {
+        return config.url;
+      }
+    })()
+  });
+  return config;
 });
 
 // Interceptador de requisições
@@ -58,11 +92,24 @@ api.interceptors.request.use(
 // Interceptador de respostas
 api.interceptors.response.use(
   (response) => {
+    globalThis['console']?.debug('[API] response:', {
+      status: response.status,
+      method: response.config?.method,
+      baseURL: response.config?.baseURL,
+      url: response.config?.url
+    });
     return response;
   },
   (error) => {
     // Tratamento global de erros
     if (error.response) {
+      globalThis['console']?.error('[API] error response:', {
+        status: error.response.status,
+        data: error.response.data,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        url: error.config?.url
+      });
       const status = error.response.status;
       const data = error.response.data as ApiError;
       
@@ -100,8 +147,16 @@ api.interceptors.response.use(
           toast.error('Erro inesperado');
       }
     } else if (error.request) {
+      globalThis['console']?.error('[API] error request (no response):', {
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        url: error.config?.url
+      });
       toast.error('Erro de conexão com o servidor');
     } else {
+      globalThis['console']?.error('[API] error general:', {
+        message: error.message
+      });
       toast.error('Erro inesperado');
     }
     
