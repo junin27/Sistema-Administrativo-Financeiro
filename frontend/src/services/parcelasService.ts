@@ -100,7 +100,8 @@ const parcelasService = {
     // if (filters?.data_vencimento_fim) params.append('data_vencimento_fim', filters.data_vencimento_fim);
     if (filters?.include_deleted !== undefined) params.append('include_deleted', filters.include_deleted.toString());
 
-    const response = await api.get(`${BASE_URL}?${params.toString()}`);
+    const path = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+    const response = await api.get(`${path}?${params.toString()}`);
     
     // O backend retorna List[ParcelasContasResponse], não PaginationResponse
     // Precisamos adaptar a resposta para o formato esperado pelo frontend ou ajustar o frontend
@@ -120,9 +121,8 @@ const parcelasService = {
    * Lista todas as parcelas (paginado) - backward compatibility
    */
   async getAll(skip: number = 0, limit: number = 100): Promise<Parcela[]> {
-    const response = await api.get(BASE_URL, {
-      params: { skip, limit }
-    });
+    const path = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+    const response = await api.get(`${path}?skip=${skip}&limit=${limit}`);
     return (response.data as ParcelaBackendResponse[]).map((p) => this.normalizeParcela(p));
   },
 
