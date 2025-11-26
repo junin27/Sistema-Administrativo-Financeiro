@@ -2,22 +2,41 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/pages/*": ["src/pages/*"],
-      "@/services/*": ["src/services/*"],
-      "@/types/*": ["src/types/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/hooks/*": ["src/hooks/*"],
-      "@/contexts/*": ["src/contexts/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@/components/*": [
+        "src/components/*"
+      ],
+      "@/pages/*": [
+        "src/pages/*"
+      ],
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/types/*": [
+        "src/types/*"
+      ],
+      "@/utils/*": [
+        "src/utils/*"
+      ],
+      "@/hooks/*": [
+        "src/hooks/*"
+      ],
+      "@/contexts/*": [
+        "src/contexts/*"
+      ]
     },
-
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -25,13 +44,18 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }
