@@ -45,6 +45,12 @@ export const api = axios.create({
 // Interceptador para garantir HTTPS em todas as requisições
 api.interceptors.request.use((config) => {
   const originalBase = config.baseURL;
+  // Se a URL for absoluta e começar com http, força https quando página estiver em https
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && config.url?.startsWith('http://')) {
+    config.url = config.url.replace(/^http:\/\//i, 'https://');
+    globalThis['console']?.warn('[API] absolute URL forced to https:', config.url);
+  }
+
   if (config.url && !config.url.startsWith('http')) {
     // Se a URL for relativa, o axios usa a baseURL. 
     // Vamos garantir que a baseURL esteja correta no momento da requisição também
