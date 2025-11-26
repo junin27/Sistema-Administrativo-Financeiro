@@ -1,0 +1,165 @@
+PARTE 1:
+Funcionalidades que serão implementadas:
+ MANTER FORNECEDOR
+ MANTER CLIENTE
+ MANTER FATURADO
+ MANTER TIPO DE RECEITA
+ MANTER TIPO DE DESPESA
+ REGISTRAR CONTAS A PAGAR
+ REGISTRAR CONTAS A RECEBER
+
+Regras de negócios:
+ Cadastros não podem ser excluídos.
+ Cadastros devem ser INATIVADOS
+ Cadastros devem possível REATIVAR um registro INATIVO
+ Um registro de contas a pagar, pode ser classificado em uma ou mais Tipo de
+DESPESAS
+ Um registro de contas a receber, pode ser classificado em uma ou mais Tipo de
+RECEITAS
+ Um registro de contas a pagar ou a receber, pode ter uma ou mais PARCELAS com
+data de vencimento distinto.
+
+ATIVIDADE 1° Etapa:
+Será implementando um processador de PDF, utilizando LLM (recomenda-se Gemini), para
+extrair os dados de uma nota fiscal (CONTAS A PAGAR) e devolver em formato JSON
+Campos obrigatórios que devem ser extraídos:
+ Fornecedor
+o Razão Social
+o Fantasia
+o CNPJ
+
+ Faturado
+o Nome Completo
+o CPF
+ Número da Nota Fiscal
+ Data de Emissão
+ Descrição dos produtos (não será necessário criar uma entidade PRODUTOS)
+ Quantidade de Parcelas (Neste momento vamos trabalhar com uma parcela, porém
+com estrutura para receber mais de uma parcela)
+ Data de Vencimento
+ ValorTotal
+ Classificação da DESPESA (Neste momento vamos trabalhar com uma classificação
+de DESPESA por registro, porém com estrutura para receber mais de uma
+classificação)
+
+DESPESA não é um campo extraído. Deverá ser interpretado pelo Gemini. Conforme os
+produtos da Nota Fiscal, classifica-se o registro:
+Ex.:
+ Compra de Oleo Diesel  Classifica-se na categoria MANUTENÇÃO E
+OPERAÇÃO
+ Compra de Material Hidráulico  Classifica-se na categoria INFRAESTRUTURA E
+UTILIDADES
+
+PRINCIPAIS CATEGORIAS DE DESPESAS (Com o passar do tempo, haverá mais
+DESPESAS)
+ INSUMOS AGRÍCOLAS:
+o Sementes, Fertilizantes, Defensivos Agrícolas, Corretivos
+ MANUTENÇÃO E OPERAÇÃO:
+o Combustíveis e Lubrificantes
+o Peças, Parafusos, Componentes Mecânicos
+o Manutenção de Máquinas e Equipamentos
+o Pneus, Filtros, Correias
+o Ferramentas e Utensílios
+ RECURSOS HUMANOS:
+o Mão de Obra Temporária
+o Salários e Encargos
+ SERVIÇOS OPERACIONAIS:
+o Frete e Transporte
+o Colheita Terceirizada
+o Secagem e Armazenagem
+o Pulverização e Aplicação
+
+ INFRAESTRUTURA E UTILIDADES:
+o Energia Elétrica
+o Arrendamento de Terras
+o Construções e Reformas
+o Materiais de Construção
+ ADMINISTRATIVAS:
+o Honorários (Contábeis, Advocatícios, Agronômicos)
+o Despesas Bancárias e Financeiras
+ SEGUROS E PROTEÇÃO:
+o Seguro Agrícola
+o Seguro de Ativos (Máquinas/Veículos)
+o Seguro Prestamista
+ IMPOSTOS E TAXAS:
+o ITR, IPTU, IPVA, INCRA-CCIR
+ INVESTIMENTOS:
+o Aquisição de Máquinas e Implementos
+o Aquisição de Veículos
+o Aquisição de Imóveis
+o Infraestrutura Rural
+
+Será implementada uma interface gráfica WEB. Nesta o usuário carrega a nota fiscal em
+formato PDF . Modelo pode ser visualizado na Figura 1. Logo após carregar a nota fiscal, o
+usuário solicita a extração de dados, através de um Button, que aciona o Gemini que extrai e
+devolve os dados em formato JSON na TELA, ilustrado na FIGURA2.
+
+
+------------------
+
+PARTE 2:
+Funcionalidades que serão implementadas:
+ MANTER FORNECEDOR
+ MANTER CLIENTE
+ MANTER FATURADO
+ MANTER TIPO DE RECEITA
+ MANTER TIPO DE DESPESA
+ REGISTRAR CONTAS A PAGAR
+ REGISTRAR CONTAS A RECEBER
+
+Regras de negócios:
+ Cadastros não podem ser excluídos.
+ Cadastros devem ser INATIVADOS
+ Cadastros devem possível REATIVAR um registro INATIVO
+ Um registro de contas a pagar, pode ser classificado em uma ou mais Tipo de
+DESPESAS
+ Um registro de contas a receber, pode ser classificado em uma ou mais Tipo de
+RECEITAS
+ Um registro de contas a pagar ou a receber, pode ter uma ou mais PARCELAS com
+data de vencimento distinto.
+
+ATIVIDADE 2° Etapa:
+Após a 1° ETAPA – Após a extração dos dados, deve-se iniciar a análise dos dados.
+ FORNECEDOR: Deve consultar no Banco de Dados e informar se o FORNECEDOR
+existe ou não –
+ FATURADO: Deve consultar no Banco de Dados e informar se o FORNECEDOR
+existe ou não.
+ DESPESA: Deve consultar no Banco de Dados e informar se a classificação da
+DESPESA existe ou não.
+
+Mostrar resposta da consulta na tela:
+Ex.:
+FORNECEDOR:
+IGUAÇU MAQUINAS LTDA
+CNPJ: 11.111.111/0001-00
+NÃO EXISTE
+FATURADO
+BELTRANO DA SILVA
+CPF: 999.999.999-99
+EXISTE – ID: 19
+DESPESA
+MANUTENÇÃO E OPERAÇÃO
+EXISTE – ID: 22
+
+Após mostrar a mensagem, o sistema deve-se:
+1. CRIAR O NOVO FORNECEDOR (se for o caso)
+2. CRIAR O NOVO FATURADO (se for o caso)
+3. CRIAR NOVA DESPESA (se for o caso)
+4. CRIAR UM NOVO REGISTRO DO MOVIMENTO
+5. INFORMAR AO USUÁRIO QUE REGISTRO FOI LANÇADO COM SUCESSO.
+
+Note no diagrama de entidade relacionamento (abaixo) que as seguintes entidades serão
+afetadas:
+- MOVIMENTOCONTAS
+Tipo (APAGAR)
+- PARCELACONTAS
+Identificacao (ÚNICA)
+- CLASSIFICACAO
+Tipo (DESPESA)
+Descricao (MANUTENÇÃO E OPERAÇÃO)
+- PESSOAS
+Tipo(CLIENTE-FORNECEDOR)
+RazaoSocial (IGUAÇU MAQUINAS LTDA)
+- PESSOAS
+Tipo(FATURADO)
+RazaoSocial (BELTRANO DA SILVA)
