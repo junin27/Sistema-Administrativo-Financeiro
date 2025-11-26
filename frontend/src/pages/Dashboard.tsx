@@ -39,32 +39,32 @@ function StatCard({ title, value, icon: Icon, trend, color }: Readonly<StatCardP
   };
 
   return (
-    <div className="card">
-      <div className="card-body">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-              <Icon className="h-6 w-6" />
+    <div className='card'>
+      <div className='card-body'>
+        <div className='flex items-center'>
+          <div className='flex-shrink-0'>
+            <div className={`${colorClasses[color]} p-3 rounded-lg`}>
+              <Icon className='h-6 w-6' />
             </div>
           </div>
-          <div className="ml-5 w-0 flex-1">
+          <div className='ml-5 w-0 flex-1'>
             <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">
+              <dt className='text-sm font-medium text-gray-500 truncate'>
                 {title}
               </dt>
-              <dd className="text-lg font-semibold text-gray-900">
+              <dd className='text-lg font-semibold text-gray-900'>
                 {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
               </dd>
             </dl>
           </div>
         </div>
         {trend && (
-          <div className="mt-4">
-            <div className="flex items-center text-sm">
+          <div className='mt-4'>
+            <div className='flex items-center text-sm'>
               <span className={`font-medium ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
                 {trend.positive ? '+' : ''}{trend.value}%
               </span>
-              <span className="ml-2 text-gray-500">{trend.label}</span>
+              <span className='ml-2 text-gray-500'>{trend.label}</span>
             </div>
           </div>
         )}
@@ -103,32 +103,38 @@ export function Dashboard() {
   const stats = React.useMemo(() => {
     if (!pessoas || !movimentos || !resumo) return null;
 
-    const totalSuppliers = pessoas.items?.filter(p => p.tipo === 'fornecedor').length || 0;
-    const totalCustomers = pessoas.items?.filter(p => p.tipo === 'cliente').length || 0;
+    // Correção: Usar MAIÚSCULAS para comparar tipos do backend (conforme seus seeders)
+    const totalSuppliers = pessoas.items?.filter(p => p.tipo === 'FORNECEDOR').length || 0;
+    const totalCustomers = pessoas.items?.filter(p => p.tipo === 'CLIENTE').length || 0;
     
-    const contasPagar = movimentos.items?.filter(m => m.tipo === 'despesa' && m.status !== 'pago') || [];
-    const contasReceber = movimentos.items?.filter(m => m.tipo === 'receita' && m.status !== 'pago') || [];
+    // Correção: Usar 'valortotal' (nome correto na interface) e status em maiúsculo
+    const contasPagar = movimentos.items?.filter(m => m.tipo === 'DESPESA' && m.status !== 'PAGO') || [];
+    const contasReceber = movimentos.items?.filter(m => m.tipo === 'RECEITA' && m.status !== 'PAGO') || [];
     
-    const totalPayable = contasPagar.reduce((sum, m) => sum + m.valor, 0);
-    const totalReceivable = contasReceber.reduce((sum, m) => sum + m.valor, 0);
+    const totalPayable = contasPagar.reduce((sum, m) => sum + (m.valortotal || 0), 0);
+    const totalReceivable = contasReceber.reduce((sum, m) => sum + (m.valortotal || 0), 0);
     
     const today = new Date();
-    const overdueBills = movimentos.items?.filter(m => 
-      m.status !== 'pago' && new Date(m.data_vencimento) < today
-    ).length || 0;
+    // Correção: Usar 'datavencimento' (sem underscore) e verificar existência
+    const overdueBills = movimentos.items?.filter(m => {
+      if (!m.datavencimento) return false;
+      return m.status !== 'PAGO' && new Date(m.datavencimento) < today;
+    }).length || 0;
     
     const thisMonth = new Date();
     thisMonth.setDate(1);
+    // Correção: Usar 'dataemissao' (sem underscore)
     const paidThisMonth = movimentos.items?.filter(m => 
-      m.status === 'pago' && new Date(m.data_emissao) >= thisMonth
+      m.status === 'PAGO' && new Date(m.dataemissao) >= thisMonth
     ).length || 0;
 
     const recentActivity = movimentos.items?.slice(0, 5).map(m => ({
-      id: m.id,
-      type: m.tipo === 'receita' ? 'receipt' : 'payment',
-      description: `${m.tipo === 'receita' ? 'Recebimento' : 'Pagamento'} - NF ${m.numero_nota_fiscal}`,
-      amount: m.valor,
-      date: m.data_emissao
+      id: m.idMovimentoContas, // Correção: idMovimentoContas
+      type: m.tipo === 'RECEITA' ? 'receipt' : 'payment',
+      // Correção: numeronotafiscal (sem underscore)
+      description: `${m.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento'} - NF ${m.numeronotafiscal || 'N/A'}`,
+      amount: m.valortotal, // Correção: valortotal
+      date: m.dataemissao // Correção: dataemissao
     })) || [];
 
     return {
@@ -144,61 +150,61 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="loading-spinner"></div>
+      <div className='flex items-center justify-center h-64'>
+        <div className='loading-spinner'></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className='text-2xl font-bold text-gray-900'>Dashboard</h1>
+        <p className='mt-1 text-sm text-gray-500'>
           Visão geral do sistema financeiro
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4'>
         <StatCard
-          title="Total Fornecedores"
+          title='Total Fornecedores'
           value={stats?.totalSuppliers || 0}
           icon={Building2}
-          color="blue"
+          color='blue'
         />
         <StatCard
-          title="Total Clientes"
+          title='Total Clientes'
           value={stats?.totalCustomers || 0}
           icon={Users}
-          color="green"
+          color='green'
         />
         <StatCard
-          title="Contas a Pagar"
+          title='Contas a Pagar'
           value={formatCurrency(stats?.totalPayable || 0)}
           icon={TrendingDown}
-          color="red"
+          color='red'
         />
         <StatCard
-          title="Contas a Receber"
+          title='Contas a Receber'
           value={formatCurrency(stats?.totalReceivable || 0)}
           icon={TrendingUp}
-          color="green"
+          color='green'
         />
       </div>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="card">
-          <div className="card-body">
-            <div className="flex items-center">
-              <AlertCircle className="h-8 w-8 text-red-500" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">
+      <div className='grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+        <div className='card'>
+          <div className='card-body'>
+            <div className='flex items-center'>
+              <AlertCircle className='h-8 w-8 text-red-500' />
+              <div className='ml-4'>
+                <h3 className='text-lg font-medium text-gray-900'>
                   Contas Vencidas
                 </h3>
-                <p className="text-2xl font-bold text-red-600">
+                <p className='text-2xl font-bold text-red-600'>
                   {stats?.overdueBills || 0}
                 </p>
               </div>
@@ -206,15 +212,15 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-body">
-            <div className="flex items-center">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">
+        <div className='card'>
+          <div className='card-body'>
+            <div className='flex items-center'>
+              <CheckCircle2 className='h-8 w-8 text-green-500' />
+              <div className='ml-4'>
+                <h3 className='text-lg font-medium text-gray-900'>
                   Pagos este Mês
                 </h3>
-                <p className="text-2xl font-bold text-green-600">
+                <p className='text-2xl font-bold text-green-600'>
                   {stats?.paidThisMonth || 0}
                 </p>
               </div>
@@ -222,19 +228,20 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-body">
-            <div className="flex items-center">
-              <Calendar className="h-8 w-8 text-blue-500" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">
+        <div className='card'>
+          <div className='card-body'>
+            <div className='flex items-center'>
+              <Calendar className='h-8 w-8 text-blue-500' />
+              <div className='ml-4'>
+                <h3 className='text-lg font-medium text-gray-900'>
                   Vencimentos Hoje
                 </h3>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className='text-2xl font-bold text-blue-600'>
                   {movimentos?.items?.filter(m => {
+                    if (!m.datavencimento) return false;
                     const today = new Date().toDateString();
-                    const vencimento = new Date(m.data_vencimento).toDateString();
-                    return m.status !== 'pago' && vencimento === today;
+                    const vencimento = new Date(m.datavencimento).toDateString();
+                    return m.status !== 'PAGO' && vencimento === today;
                   }).length || 0}
                 </p>
               </div>
@@ -244,40 +251,40 @@ export function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="text-lg font-medium text-gray-900">
+      <div className='card'>
+        <div className='card-header'>
+          <h3 className='text-lg font-medium text-gray-900'>
             Atividade Recente
           </h3>
         </div>
-        <div className="card-body">
-          <div className="flow-root">
-            <ul className="-mb-8">
+        <div className='card-body'>
+          <div className='flow-root'>
+            <ul className='-mb-8'>
               {stats?.recentActivity.map((activity, activityIdx) => (
-                <li key={activity.id}>
-                  <div className="relative pb-8">
+                <li key={activity.id || activityIdx}>
+                  <div className='relative pb-8'>
                     {activityIdx !== stats.recentActivity.length - 1 ? (
                       <span
-                        className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                        aria-hidden="true"
+                        className='absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200'
+                        aria-hidden='true'
                       />
                     ) : null}
-                    <div className="relative flex space-x-3">
+                    <div className='relative flex space-x-3'>
                       <div>
-                        <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
-                          <DollarSign className="h-4 w-4 text-white" />
+                        <span className='h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white'>
+                          <DollarSign className='h-4 w-4 text-white' />
                         </span>
                       </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                      <div className='min-w-0 flex-1 pt-1.5 flex justify-between space-x-4'>
                         <div>
-                          <p className="text-sm text-gray-500">
+                          <p className='text-sm text-gray-500'>
                             {activity.description}
                           </p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {formatCurrency(activity.amount)}
+                          <p className='text-sm font-medium text-gray-900'>
+                            {formatCurrency(activity.amount || 0)}
                           </p>
                         </div>
-                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                        <div className='text-right text-sm whitespace-nowrap text-gray-500'>
                           {new Date(activity.date).toLocaleDateString('pt-BR')}
                         </div>
                       </div>

@@ -5,7 +5,7 @@
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import type { ApiResponse, ApiError } from '../types/entities';
+import type { ApiError } from '../types/entities';
 
 // Configuração base do axios
 const getBaseUrl = () => {
@@ -95,49 +95,3 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Funções auxiliares para requests tipados
-export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  const response = await api.get<ApiResponse<T>>(url, { params });
-  return response.data.data as T;
-}
-
-export async function post<T>(url: string, data?: unknown): Promise<T> {
-  const response = await api.post<ApiResponse<T>>(url, data);
-  return response.data.data as T;
-}
-
-export async function put<T>(url: string, data?: unknown): Promise<T> {
-  const response = await api.put<ApiResponse<T>>(url, data);
-  return response.data.data as T;
-}
-
-export async function patch<T>(url: string, data?: unknown): Promise<T> {
-  const response = await api.patch<ApiResponse<T>>(url, data);
-  return response.data.data as T;
-}
-
-export async function del<T>(url: string): Promise<T> {
-  const response = await api.delete<ApiResponse<T>>(url);
-  return response.data.data as T;
-}
-
-// Função para upload de arquivos
-export async function uploadFile<T>(url: string, file: File, onProgress?: (progress: number) => void): Promise<T> {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await api.post<ApiResponse<T>>(url, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-    onUploadProgress: (progressEvent) => {
-      if (onProgress && progressEvent.total) {
-        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        onProgress(progress);
-      }
-    },
-  });
-  
-  return response.data.data as T;
-}
