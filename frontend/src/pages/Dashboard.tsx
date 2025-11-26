@@ -103,32 +103,38 @@ export function Dashboard() {
   const stats = React.useMemo(() => {
     if (!pessoas || !movimentos || !resumo) return null;
 
-    const totalSuppliers = pessoas.items?.filter(p => p.tipo === 'fornecedor').length || 0;
-    const totalCustomers = pessoas.items?.filter(p => p.tipo === 'cliente').length || 0;
+    // Correção: Usar MAIÚSCULAS para comparar tipos do backend (conforme seus seeders)
+    const totalSuppliers = pessoas.items?.filter(p => p.tipo === 'FORNECEDOR').length || 0;
+    const totalCustomers = pessoas.items?.filter(p => p.tipo === 'CLIENTE').length || 0;
     
-    const contasPagar = movimentos.items?.filter(m => m.tipo === 'despesa' && m.status !== 'pago') || [];
-    const contasReceber = movimentos.items?.filter(m => m.tipo === 'receita' && m.status !== 'pago') || [];
+    // Correção: Usar 'valortotal' (nome correto na interface) e status em maiúsculo
+    const contasPagar = movimentos.items?.filter(m => m.tipo === 'DESPESA' && m.status !== 'PAGO') || [];
+    const contasReceber = movimentos.items?.filter(m => m.tipo === 'RECEITA' && m.status !== 'PAGO') || [];
     
-    const totalPayable = contasPagar.reduce((sum, m) => sum + m.valor, 0);
-    const totalReceivable = contasReceber.reduce((sum, m) => sum + m.valor, 0);
+    const totalPayable = contasPagar.reduce((sum, m) => sum + (m.valortotal || 0), 0);
+    const totalReceivable = contasReceber.reduce((sum, m) => sum + (m.valortotal || 0), 0);
     
     const today = new Date();
-    const overdueBills = movimentos.items?.filter(m => 
-      m.status !== 'pago' && new Date(m.data_vencimento) < today
-    ).length || 0;
+    // Correção: Usar 'datavencimento' (sem underscore) e verificar existência
+    const overdueBills = movimentos.items?.filter(m => {
+      if (!m.datavencimento) return false;
+      return m.status !== 'PAGO' && new Date(m.datavencimento) < today;
+    }).length || 0;
     
     const thisMonth = new Date();
     thisMonth.setDate(1);
+    // Correção: Usar 'dataemissao' (sem underscore)
     const paidThisMonth = movimentos.items?.filter(m => 
-      m.status === 'pago' && new Date(m.data_emissao) >= thisMonth
+      m.status === 'PAGO' && new Date(m.dataemissao) >= thisMonth
     ).length || 0;
 
     const recentActivity = movimentos.items?.slice(0, 5).map(m => ({
-      id: m.id,
-      type: m.tipo === 'receita' ? 'receipt' : 'payment',
-      description: `${m.tipo === 'receita' ? 'Recebimento' : 'Pagamento'} - NF ${m.numero_nota_fiscal}`,
-      amount: m.valor,
-      date: m.data_emissao
+      id: m.idMovimentoContas, // Correção: idMovimentoContas
+      type: m.tipo === 'RECEITA' ? 'receipt' : 'payment',
+      // Correção: numeronotafiscal (sem underscore)
+      description: `${m.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento'} - NF ${m.numeronotafiscal || 'N/A'}`,
+      amount: m.valortotal, // Correção: valortotal
+      date: m.dataemissao // Correção: dataemissao
     })) || [];
 
     return {
@@ -232,9 +238,10 @@ export function Dashboard() {
                 </h3>
                 <p className="text-2xl font-bold text-blue-600">
                   {movimentos?.items?.filter(m => {
+                    if (!m.datavencimento) return false;
                     const today = new Date().toDateString();
-                    const vencimento = new Date(m.data_vencimento).toDateString();
-                    return m.status !== 'pago' && vencimento === today;
+                    const vencimento = new Date(m.datavencimento).toDateString();
+                    return m.status !== 'PAGO' && vencimento === today;
                   }).length || 0}
                 </p>
               </div>
@@ -254,7 +261,7 @@ export function Dashboard() {
           <div className="flow-root">
             <ul className="-mb-8">
               {stats?.recentActivity.map((activity, activityIdx) => (
-                <li key={activity.id}>
+                <li key={activity.id || activityIdx}>
                   <div className="relative pb-8">
                     {activityIdx !== stats.recentActivity.length - 1 ? (
                       <span
@@ -274,7 +281,7 @@ export function Dashboard() {
                             {activity.description}
                           </p>
                           <p className="text-sm font-medium text-gray-900">
-                            {formatCurrency(activity.amount)}
+                            {formatCurrency(activity.amount || 0)}
                           </p>
                         </div>
                         <div className="text-right text-sm whitespace-nowrap text-gray-500">
