@@ -12,7 +12,6 @@ const Pessoas: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<PessoaFilter>({});
   const [showFilters] = useState(true);
-  const [hasActiveFilters, setHasActiveFilters] = useState(false);
 
   const pageSize = 10;
 
@@ -46,8 +45,6 @@ const Pessoas: React.FC = () => {
       filters.razaosocial ||
       filters.fantasia
     );
-    
-    setHasActiveFilters(hasFilters);
     
     // Debounce para campos de texto (documento, razaosocial, fantasia)
     const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
@@ -90,7 +87,6 @@ const Pessoas: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    setHasActiveFilters(false);
     setPessoas([]);
     setTotalPages(1);
     setTotal(0);

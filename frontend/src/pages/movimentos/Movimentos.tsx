@@ -25,7 +25,6 @@ const Movimentos: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<MovimentoContaFilter>({});
   const [showFilters] = useState(true);
-  const [hasActiveFilters, setHasActiveFilters] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
   const pageSize = 10;
@@ -70,8 +69,6 @@ const Movimentos: React.FC = () => {
       filters.data_vencimento_fim
     );
     
-    setHasActiveFilters(hasFilters);
-    
     // Debounce para campos de texto (numeronotafiscal)
     const isTextFilter = !!filters.numeronotafiscal;
     const timeoutId = isTextFilter 
@@ -113,7 +110,6 @@ const Movimentos: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    setHasActiveFilters(false);
     setMovimentos([]);
     setTotalPages(1);
     setTotal(0);
