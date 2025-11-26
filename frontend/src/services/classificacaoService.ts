@@ -16,7 +16,8 @@ export const classificacaoService = {
     tipo?: ClassificacaoTipo, 
     include_deleted?: boolean 
   }): Promise<PaginationResponse<Classificacao>> => {
-    const response = await api.get(BASE_URL, { params });
+    const path = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+    const response = await api.get(path, { params });
     return response.data;
   },
 
