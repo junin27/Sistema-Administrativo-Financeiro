@@ -11,11 +11,24 @@ import type { ApiError } from '../types/entities';
 const getBaseUrl = () => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   
+  // Remove espaços em branco extras
+  url = url.trim();
+
+  // Garante que a URL tenha protocolo
+  if (!/^https?:\/\//i.test(url)) {
+    const protocol = (typeof window !== 'undefined' && window.location.protocol === 'https:') ? 'https://' : 'http://';
+    url = `${protocol}${url}`;
+  }
+
   // Se a página estiver em HTTPS e a API em HTTP, força HTTPS para evitar Mixed Content
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http:')) {
-    url = url.replace('http:', 'https:');
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+    // Substitui http:// por https:// (case insensitive)
+    if (/^http:\/\//i.test(url)) {
+      url = url.replace(/^http:\/\//i, 'https://');
+    }
   }
   
+  console.log('API Base URL:', url); // Debug para verificar a URL final
   return url;
 };
 
