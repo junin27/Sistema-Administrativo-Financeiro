@@ -98,7 +98,8 @@ class MovimentosService {
     // Note: Backend filter schema has data_inicio/data_fim, not specific for emissao/vencimento. 
     // ddl_schemas.py says data_inicio/data_fim. I'll map data_emissao_inicio to data_inicio for now.
 
-    const response = await api.get(`${this.baseUrl}?${queryParams.toString()}`);
+    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    const response = await api.get(`${path}?${queryParams.toString()}`);
     return response.data;
   }
 

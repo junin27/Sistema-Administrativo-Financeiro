@@ -72,7 +72,8 @@ class PessoasService {
     if (params?.filters?.fantasia) queryParams.append('fantasia', params.filters.fantasia);
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
 
-    const response = await api.get(`${this.baseUrl}?${queryParams.toString()}`);
+    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    const response = await api.get(`${path}?${queryParams.toString()}`);
     return response.data;
   }
 
