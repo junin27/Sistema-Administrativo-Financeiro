@@ -5,7 +5,7 @@ import pessoasService, { Pessoa, PessoaFilter } from '../../services/pessoasServ
 
 const Pessoas: React.FC = () => {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -44,6 +44,7 @@ const Pessoas: React.FC = () => {
       setPessoas([]);
       setTotalPages(1);
       setTotal(0);
+      setLoading(false);
     }
   }, [loadPessoas, filters, statusSelected]);
 
@@ -59,7 +60,11 @@ const Pessoas: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    loadPessoas(1, {});
+    setStatusSelected(false);
+    setPessoas([]);
+    setTotalPages(1);
+    setTotal(0);
+    setLoading(false);
   };
 
   const handleDelete = async (id: number) => {

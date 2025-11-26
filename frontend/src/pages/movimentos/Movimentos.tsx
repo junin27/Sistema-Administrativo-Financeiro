@@ -18,7 +18,7 @@ const Movimentos: React.FC = () => {
   const [movimentos, setMovimentos] = useState<MovimentoConta[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   // const [resumo, setResumo] = useState<MovimentoResumo[]>([]); // TODO: Implementar resumo de movimentos
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -64,6 +64,7 @@ const Movimentos: React.FC = () => {
       setMovimentos([]);
       setTotalPages(1);
       setTotal(0);
+      setLoading(false);
     }
   }, [showInactive, loadMovimentos, filters, statusSelected]);
 
@@ -79,7 +80,11 @@ const Movimentos: React.FC = () => {
 
   const clearFilters = () => {
     setFilters({});
-    loadMovimentos(1, {}, showInactive);
+    setStatusSelected(false);
+    setMovimentos([]);
+    setTotalPages(1);
+    setTotal(0);
+    setLoading(false);
   };
 
   const handleDelete = async (id: number) => {
