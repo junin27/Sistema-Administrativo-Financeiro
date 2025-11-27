@@ -60,6 +60,8 @@ export interface MovimentoContaFilter {
   data_vencimento_inicio?: string;
   data_vencimento_fim?: string;
   include_deleted?: boolean;
+  order_by?: string;
+  order_dir?: 'asc' | 'desc';
 }
 
 export interface MovimentosListResponse {
