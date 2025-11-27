@@ -25,7 +25,7 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = currentSort?.field === field;
-  const currentOrder = isActive ? currentSort.order : 'default';
+  const currentOrder = isActive ? (currentSort.order || 'default') : 'default';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -49,9 +49,11 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
   };
 
   const getIcon = () => {
+    // Se não está ativo, mostra ChevronDown
     if (!isActive) {
       return <ChevronDown className="h-4 w-4 text-gray-400" />;
     }
+    // Se está ativo, mostra o ícone baseado na ordem atual
     switch (currentOrder) {
       case 'asc':
         return <ArrowUp className="h-4 w-4 text-blue-600" />;
@@ -66,14 +68,16 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
 
   return (
     <th
-      className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider relative border-b-2 border-blue-500 ${className}`}
+      className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider relative ${className}`}
     >
       <div className="relative" ref={menuRef}>
         <div 
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
           onClick={() => setIsOpen(!isOpen)}
         >
-          <span className="text-blue-600 font-semibold">{label}</span>
+          <span className="text-blue-600 font-semibold border-b-2 border-dashed border-blue-500 pb-1">
+            {label}
+          </span>
           <div
             className={`flex items-center justify-center p-1 rounded hover:bg-blue-50 transition-colors ${
               isActive ? 'text-blue-600' : 'text-gray-400'
