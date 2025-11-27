@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import pessoasService, { Pessoa, PessoaFilter } from '../../services/pessoasService';
+import { SortableTableHeader, SortOrder } from '../../components/table/SortableTableHeader';
 
 const Pessoas: React.FC = () => {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
@@ -12,6 +13,7 @@ const Pessoas: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<PessoaFilter>({});
   const [showFilters] = useState(true);
+  const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
   const pageSize = 10;
 
@@ -81,6 +83,23 @@ const Pessoas: React.FC = () => {
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
     const newFilters = { ...filters, [field]: value || undefined };
     setFilters(newFilters);
+  };
+
+  const handleSortChange = (field: string, order: SortOrder) => {
+    if (order === 'default') {
+      setSortConfig(undefined);
+      const newFilters = { ...filters };
+      delete newFilters.order_by;
+      delete newFilters.order_dir;
+      setFilters(newFilters);
+    } else {
+      setSortConfig({ field, order });
+      setFilters({
+        ...filters,
+        order_by: field,
+        order_dir: order === 'asc' ? 'asc' : 'desc'
+      });
+    }
   };
 
   
@@ -230,21 +249,36 @@ const Pessoas: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Documento
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Razão Social
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Nome Fantasia
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Tipo
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
+              <SortableTableHeader
+                label="Documento"
+                field="documento"
+                currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                onSortChange={(field, order) => handleSortChange(field, order)}
+              />
+              <SortableTableHeader
+                label="Razão Social"
+                field="razaosocial"
+                currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                onSortChange={(field, order) => handleSortChange(field, order)}
+              />
+              <SortableTableHeader
+                label="Nome Fantasia"
+                field="fantasia"
+                currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                onSortChange={(field, order) => handleSortChange(field, order)}
+              />
+              <SortableTableHeader
+                label="Tipo"
+                field="tipo"
+                currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                onSortChange={(field, order) => handleSortChange(field, order)}
+              />
+              <SortableTableHeader
+                label="Status"
+                field="status"
+                currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                onSortChange={(field, order) => handleSortChange(field, order)}
+              />
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Ações
               </th>

@@ -51,9 +51,11 @@ async def list_pessoas(
     status: Optional[str] = Query(None, description="Filtrar por status"),
     documento: Optional[str] = Query(None, description="Filtrar por documento"),
     search: Optional[str] = Query(None, description="Buscar por nome"),
+    order_by: Optional[str] = Query(None, description="Campo para ordenação"),
+    order_dir: Optional[str] = Query(None, description="Direção da ordenação (asc/desc)"),
     db: Session = Depends(get_db)
 ):
-    """Lista pessoas com paginação e filtros."""
+    """Lista pessoas com paginação, filtros e ordenação."""
     repo = PessoasRepository(db)
     skip = (page - 1) * size
     
@@ -65,10 +67,12 @@ async def list_pessoas(
             tipo=tipo,
             status=status,
             documento=documento,
-            search=search
+            search=search,
+            order_by=order_by,
+            order_dir=order_dir
         )
     else:
-        items = repo.get_all(skip=skip, limit=size)
+        items = repo.get_all(skip=skip, limit=size, order_by=order_by, order_dir=order_dir)
         total = repo.count_all()
     
     # Converter models para schemas
@@ -305,9 +309,11 @@ async def list_movimentos(
     fornecedor_id: Optional[int] = Query(None, description="Filtrar por fornecedor"),
     numeronotafiscal: Optional[str] = Query(None, description="Filtrar por número da nota fiscal"),
     include_deleted: Optional[bool] = Query(False, description="Incluir registros deletados"),
+    order_by: Optional[str] = Query(None, description="Campo para ordenação"),
+    order_dir: Optional[str] = Query(None, description="Direção da ordenação (asc/desc)"),
     db: Session = Depends(get_db)
 ):
-    """Lista movimentos com paginação e filtros."""
+    """Lista movimentos com paginação, filtros e ordenação."""
     repo = MovimentoContasRepository(db)
     skip = (page - 1) * size
     
@@ -320,10 +326,12 @@ async def list_movimentos(
             status=status,
             fornecedor_id=fornecedor_id,
             numeronotafiscal=numeronotafiscal,
-            include_deleted=include_deleted
+            include_deleted=include_deleted,
+            order_by=order_by,
+            order_dir=order_dir
         )
     else:
-        items = repo.get_all(skip=skip, limit=size, include_deleted=include_deleted)
+        items = repo.get_all(skip=skip, limit=size, include_deleted=include_deleted, order_by=order_by, order_dir=order_dir)
         total = repo.count_all(include_deleted=include_deleted)
     
     # Converter models para schemas

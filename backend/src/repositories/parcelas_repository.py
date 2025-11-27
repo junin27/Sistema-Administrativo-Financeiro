@@ -4,6 +4,7 @@ Implementa operações CRUD e consultas específicas para parcelas.
 """
 
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from datetime import datetime, date
@@ -55,9 +56,23 @@ class ParcelasContasRepository:
             ParcelasContas.idParcelasContas == parcela_id
         ).first()
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> List[ParcelasContas]:
-        """Lista todas as parcelas com paginação."""
-        return self.db.query(ParcelasContas).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int = 100, order_by: Optional[str] = None, order_dir: Optional[str] = None) -> List[ParcelasContas]:
+        """Lista todas as parcelas com paginação e ordenação."""
+        query = self.db.query(ParcelasContas)
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(ParcelasContas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(ParcelasContas.idParcelasContas.asc())
+        
+        return query.offset(skip).limit(limit).all()
     
     def update(self, parcela_id: int, parcela_data: dict) -> Optional[ParcelasContas]:
         """Atualiza uma parcela."""
@@ -67,9 +82,10 @@ class ParcelasContasRepository:
                 if value is not None:  # Apenas atualizar valores não-nulos
                     setattr(parcela, key, value)
             # Recalcular saldo se valores forem alterados
-            valorparcela = parcela.valorparcela or 0
-            valorpago = parcela.valorpago or 0
-            parcela.valorsaldo = max(valorparcela - valorpago, 0)
+            valorparcela = Decimal(str(parcela.valorparcela or 0))
+            valorpago = Decimal(str(parcela.valorpago or 0))
+            saldo_calculado = max(valorparcela - valorpago, Decimal('0'))
+            setattr(parcela, 'valorsaldo', saldo_calculado)
             self.db.commit()
             self.db.refresh(parcela)
         return parcela
@@ -89,17 +105,45 @@ class ParcelasContasRepository:
             func.upper(ParcelasContas.identificacao) == func.upper(identificacao)
         ).first()
     
-    def find_by_movimento(self, movimento_id: int) -> List[ParcelasContas]:
-        """Busca todas as parcelas de um movimento."""
-        return self.db.query(ParcelasContas).filter(
+    def find_by_movimento(self, movimento_id: int, order_by: Optional[str] = None, order_dir: Optional[str] = None) -> List[ParcelasContas]:
+        """Busca todas as parcelas de um movimento com ordenação."""
+        query = self.db.query(ParcelasContas).filter(
             ParcelasContas.MovimentoContas_idMovimentoContas == movimento_id
-        ).order_by(ParcelasContas.datavencimento).all()
+        )
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(ParcelasContas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por data de vencimento
+            query = query.order_by(ParcelasContas.datavencimento.asc())
+        
+        return query.all()
     
-    def find_by_status(self, status: str) -> List[ParcelasContas]:
-        """Busca parcelas por status."""
-        return self.db.query(ParcelasContas).filter(
+    def find_by_status(self, status: str, order_by: Optional[str] = None, order_dir: Optional[str] = None) -> List[ParcelasContas]:
+        """Busca parcelas por status com ordenação."""
+        query = self.db.query(ParcelasContas).filter(
             func.upper(ParcelasContas.statusparcela) == func.upper(status)
-        ).all()
+        )
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(ParcelasContas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(ParcelasContas.idParcelasContas.asc())
+        
+        return query.all()
     
     def find_vencidas(self, data_referencia: Optional[date] = None) -> List[ParcelasContas]:
         """Busca parcelas vencidas até uma data (padrão: hoje)."""
@@ -138,16 +182,17 @@ class ParcelasContasRepository:
         parcela = self.get_by_id(parcela_id)
         if not parcela:
             return None
-        parcela.statusparcela = novo_status
+        setattr(parcela, 'statusparcela', novo_status)
         # Se marcar como PAGA, ajustar valores
         if novo_status and novo_status.upper() == 'PAGA':
-            parcela.valorpago = parcela.valorparcela or 0
-            parcela.valorsaldo = 0
-            parcela.datapagamento = datapagamento or date.today()
+            valor_parcela = Decimal(str(parcela.valorparcela or 0))
+            setattr(parcela, 'valorpago', valor_parcela)
+            setattr(parcela, 'valorsaldo', Decimal('0'))
+            setattr(parcela, 'datapagamento', datapagamento or date.today())
         elif novo_status and novo_status.upper() != 'PAGA':
             # Se não estiver paga, não definir data de pagamento automaticamente
             if datapagamento is not None:
-                parcela.datapagamento = datapagamento
+                setattr(parcela, 'datapagamento', datapagamento)
         self.db.commit()
         self.db.refresh(parcela)
         return parcela

@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 import parcelasService from '../../services/parcelasService';
 import { ParcelaForm } from '../../components/parcelas/ParcelaForm';
 import type { Parcela, ParcelaCreate, ParcelaUpdate, ParcelaStatus } from '../../types/entities';
+import { SortableTableHeader, SortOrder } from '../../components/table/SortableTableHeader';
 
 export function Parcelas() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
@@ -37,6 +38,7 @@ export function Parcelas() {
     movimentoId: '',
     tipo: '' as '' | 'vencidas' | 'a-vencer',
   });
+  const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
   // Paginação
   const [page, setPage] = useState(1);
@@ -63,7 +65,9 @@ export function Parcelas() {
           page,
           per_page: limit,
           status: filters.status || undefined,
-          movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined
+          movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined,
+          order_by: sortConfig?.field,
+          order_dir: sortConfig?.order === 'asc' ? 'asc' : sortConfig?.order === 'desc' ? 'desc' : undefined
         });
         data = response.items;
         totalItems = response.total; // Nota: pode não ser o total real devido a limitações do backend
@@ -86,7 +90,7 @@ export function Parcelas() {
       setTotal(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.tipo, filters.movimentoId, statusSelected]);
+  }, [page, filters.tipo, filters.movimentoId, statusSelected, sortConfig]);
 
   // Aplicar filtros
   const applyFilters = () => {
@@ -102,6 +106,15 @@ export function Parcelas() {
       tipo: '',
     });
     setPage(1);
+    setSortConfig(undefined);
+  };
+
+  const handleSortChange = (field: string, order: SortOrder) => {
+    if (order === 'default') {
+      setSortConfig(undefined);
+    } else {
+      setSortConfig({ field, order });
+    }
   };
 
   // Criar parcela
@@ -332,24 +345,42 @@ export function Parcelas() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Identificação
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Parcela
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vencimento
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
+                <SortableTableHeader
+                  label="ID"
+                  field="idParcelasContas"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Identificação"
+                  field="identificacao"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Parcela"
+                  field="numero_parcela"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Valor"
+                  field="valorparcela"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Vencimento"
+                  field="datavencimento"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Status"
+                  field="statusparcela"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>

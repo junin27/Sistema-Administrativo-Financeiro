@@ -93,6 +93,8 @@ class MovimentosService {
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
     if (params?.filters?.numeronotafiscal) queryParams.append('numeronotafiscal', params.filters.numeronotafiscal);
     if (params?.filters?.include_deleted !== undefined) queryParams.append('include_deleted', params.filters.include_deleted.toString());
+    if (params?.filters?.order_by) queryParams.append('order_by', params.filters.order_by);
+    if (params?.filters?.order_dir) queryParams.append('order_dir', params.filters.order_dir);
     // Note: Backend filter schema has data_inicio/data_fim, not specific for emissao/vencimento. 
     // ddl_schemas.py says data_inicio/data_fim. I'll map data_emissao_inicio to data_inicio for now.
 

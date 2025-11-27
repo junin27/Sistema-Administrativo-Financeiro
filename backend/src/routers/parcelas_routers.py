@@ -49,15 +49,19 @@ async def list_parcelas(
     limit: int = Query(50, ge=1, le=100, description="Limite de registros"),
     status: Optional[str] = Query(None, description="Filtrar por status da parcela"),
     movimento_id: Optional[int] = Query(None, description="Filtrar por ID do movimento"),
+    order_by: Optional[str] = Query(None, description="Campo para ordenação"),
+    order_dir: Optional[str] = Query(None, description="Direção da ordenação (asc/desc)"),
     db: Session = Depends(get_db)
 ):
-    """Lista todas as parcelas com paginação."""
+    """Lista todas as parcelas com paginação e ordenação."""
     repo = ParcelasContasRepository(db)
     if status:
-        return repo.find_by_status(status)[:limit]
+        items = repo.find_by_status(status, order_by=order_by, order_dir=order_dir)
+        return items[:limit]
     if movimento_id:
-        return repo.find_by_movimento(movimento_id)[:limit]
-    return repo.get_all(skip=skip, limit=limit)
+        items = repo.find_by_movimento(movimento_id, order_by=order_by, order_dir=order_dir)
+        return items[:limit]
+    return repo.get_all(skip=skip, limit=limit, order_by=order_by, order_dir=order_dir)
 
 
 @parcelas_router.get("/movimento/{movimento_id}", response_model=List[ParcelasContasResponse])

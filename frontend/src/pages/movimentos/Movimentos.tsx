@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import movimentosService, { MovimentoConta, MovimentoContaFilter } from '../../services/movimentosService';
 import pessoasService, { Pessoa } from '../../services/pessoasService';
+import { SortableTableHeader, SortOrder } from '../../components/table/SortableTableHeader';
 
 const Movimentos: React.FC = () => {
   const [movimentos, setMovimentos] = useState<MovimentoConta[]>([]);
@@ -26,6 +27,7 @@ const Movimentos: React.FC = () => {
   const [filters, setFilters] = useState<MovimentoContaFilter>({});
   const [showFilters] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
   const pageSize = 10;
 
@@ -104,6 +106,23 @@ const Movimentos: React.FC = () => {
   const handleFilterChange = (field: keyof MovimentoContaFilter, value: string | number) => {
     const newFilters = { ...filters, [field]: value || undefined };
     setFilters(newFilters);
+  };
+
+  const handleSortChange = (field: string, order: SortOrder) => {
+    if (order === 'default') {
+      setSortConfig(undefined);
+      const newFilters = { ...filters };
+      delete newFilters.order_by;
+      delete newFilters.order_dir;
+      setFilters(newFilters);
+    } else {
+      setSortConfig({ field, order });
+      setFilters({
+        ...filters,
+        order_by: field,
+        order_dir: order === 'asc' ? 'asc' : 'desc'
+      });
+    }
   };
 
   
@@ -409,27 +428,42 @@ const Movimentos: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nota Fiscal
-                </th>
+                <SortableTableHeader
+                  label="Nota Fiscal"
+                  field="numeronotafiscal"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fornecedor/Cliente
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data Emissão
-                </th>
+                <SortableTableHeader
+                  label="Tipo"
+                  field="tipo"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Valor"
+                  field="valortotal"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
+                <SortableTableHeader
+                  label="Data Emissão"
+                  field="dataemissao"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Data Vencimento
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
+                <SortableTableHeader
+                  label="Status"
+                  field="status"
+                  currentSort={sortConfig ? { field: sortConfig.field, order: sortConfig.order } : undefined}
+                  onSortChange={(field, order) => handleSortChange(field, order)}
+                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>

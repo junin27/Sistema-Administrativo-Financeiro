@@ -44,6 +44,8 @@ export interface PessoaFilter {
   fantasia?: string;
   status?: string;
   include_deleted?: boolean;
+  order_by?: string;
+  order_dir?: 'asc' | 'desc';
 }
 
 export interface PessoasListResponse {
@@ -71,6 +73,8 @@ class PessoasService {
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
     const search = params?.filters?.razaosocial || params?.filters?.fantasia;
     if (search) queryParams.append('search', search);
+    if (params?.filters?.order_by) queryParams.append('order_by', params.filters.order_by);
+    if (params?.filters?.order_dir) queryParams.append('order_dir', params.filters.order_dir);
 
     const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
     const response = await api.get(`${path}?${queryParams.toString()}`);

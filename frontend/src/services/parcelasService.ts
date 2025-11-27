@@ -15,6 +15,8 @@ export interface ParcelaFilter {
   include_deleted?: boolean;
   page?: number;
   per_page?: number;
+  order_by?: string;
+  order_dir?: 'asc' | 'desc';
 }
 
 export interface PaginationResponse<T> {
@@ -95,6 +97,8 @@ const parcelasService = {
 
     if (filters?.movimento_id) params.append('movimento_id', filters.movimento_id.toString());
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.order_by) params.append('order_by', filters.order_by);
+    if (filters?.order_dir) params.append('order_dir', filters.order_dir);
     // Backend não suporta filtros de data ainda na listagem principal
     // if (filters?.data_vencimento_inicio) params.append('data_vencimento_inicio', filters.data_vencimento_inicio);
     // if (filters?.data_vencimento_fim) params.append('data_vencimento_fim', filters.data_vencimento_fim);

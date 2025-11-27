@@ -40,7 +40,7 @@ class PessoasRepository:
         
         return query.first()
     
-    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[Pessoas]:
+    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False, order_by: Optional[str] = None, order_dir: Optional[str] = None) -> List[Pessoas]:
         """
         Lista todas as pessoas com paginação.
         Por padrão, ignora registros inativados.
@@ -49,6 +49,18 @@ class PessoasRepository:
         
         if not include_deleted:
             query = query.filter(Pessoas.deleted_at.is_(None))
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(Pessoas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(Pessoas.idPessoas.asc())
         
         return query.offset(skip).limit(limit).all()
     
@@ -154,9 +166,11 @@ class PessoasRepository:
         status: Optional[str] = None,
         documento: Optional[str] = None,
         search: Optional[str] = None,
-        include_deleted: bool = False
+        include_deleted: bool = False,
+        order_by: Optional[str] = None,
+        order_dir: Optional[str] = None
     ) -> tuple[List[Pessoas], int]:
-        """Busca pessoas com múltiplos filtros combinados."""
+        """Busca pessoas com múltiplos filtros combinados e ordenação."""
         query = self.db.query(Pessoas)
         
         # Aplicar filtro de soft delete
@@ -180,6 +194,18 @@ class PessoasRepository:
         
         if status:
             query = query.filter(func.upper(Pessoas.status) == func.upper(status))
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(Pessoas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(Pessoas.idPessoas.asc())
         
         total = query.count()
         items = query.offset(skip).limit(limit).all()
@@ -275,7 +301,7 @@ class MovimentoContasRepository:
         
         return query.first()
     
-    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[MovimentoContas]:
+    def get_all(self, skip: int = 0, limit: int = 100, include_deleted: bool = False, order_by: Optional[str] = None, order_dir: Optional[str] = None) -> List[MovimentoContas]:
         """
         Lista todos os movimentos com paginação.
         Por padrão, ignora registros inativados.
@@ -284,6 +310,18 @@ class MovimentoContasRepository:
         
         if not include_deleted:
             query = query.filter(MovimentoContas.deleted_at.is_(None))
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(MovimentoContas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(MovimentoContas.idMovimentoContas.asc())
         
         return query.offset(skip).limit(limit).all()
     
@@ -383,9 +421,11 @@ class MovimentoContasRepository:
         status: Optional[str] = None,
         fornecedor_id: Optional[int] = None,
         numeronotafiscal: Optional[str] = None,
-        include_deleted: bool = False
+        include_deleted: bool = False,
+        order_by: Optional[str] = None,
+        order_dir: Optional[str] = None
     ) -> tuple[List[MovimentoContas], int]:
-        """Busca movimentos com múltiplos filtros combinados."""
+        """Busca movimentos com múltiplos filtros combinados e ordenação."""
         query = self.db.query(MovimentoContas)
         
         # Aplicar filtro de soft delete
@@ -406,6 +446,18 @@ class MovimentoContasRepository:
         
         if fornecedor_id:
             query = query.filter(MovimentoContas.Pessoas_idFornecedorCliente == fornecedor_id)
+        
+        # Aplicar ordenação
+        if order_by:
+            order_field = getattr(MovimentoContas, order_by, None)
+            if order_field is not None:
+                if order_dir and order_dir.lower() == 'desc':
+                    query = query.order_by(order_field.desc())
+                else:
+                    query = query.order_by(order_field.asc())
+        else:
+            # Ordem padrão: por ID (ordem de armazenamento)
+            query = query.order_by(MovimentoContas.idMovimentoContas.asc())
         
         total = query.count()
         items = query.offset(skip).limit(limit).all()
