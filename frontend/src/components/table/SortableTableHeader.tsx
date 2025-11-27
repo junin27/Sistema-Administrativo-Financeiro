@@ -57,62 +57,75 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
         return <ArrowUp className="h-4 w-4 text-blue-600" />;
       case 'desc':
         return <ArrowDown className="h-4 w-4 text-blue-600" />;
+      case 'default':
+        return <List className="h-4 w-4 text-blue-600" />;
       default:
-        return <List className="h-4 w-4 text-gray-400" />;
+        return <ChevronDown className="h-4 w-4 text-gray-400" />;
     }
   };
 
   return (
     <th
-      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative ${className}`}
+      className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider relative border-b-2 border-blue-500 ${className}`}
     >
-      <div className="flex items-center gap-2">
-        <span>{label}</span>
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className={`flex items-center justify-center p-1 rounded hover:bg-gray-100 transition-colors ${
+      <div className="relative" ref={menuRef}>
+        <div 
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="text-blue-600 font-semibold">{label}</span>
+          <div
+            className={`flex items-center justify-center p-1 rounded hover:bg-blue-50 transition-colors ${
               isActive ? 'text-blue-600' : 'text-gray-400'
             }`}
             title="Ordenar coluna"
           >
             {getIcon()}
-          </button>
-
-          {isOpen && (
-            <div className="absolute left-0 mt-1 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
-              <div className="py-1">
-                <button
-                  onClick={() => handleSort('asc')}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                    currentOrder === 'asc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                  }`}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                  Ordem Crescente
-                </button>
-                <button
-                  onClick={() => handleSort('desc')}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                    currentOrder === 'desc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                  }`}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                  Ordem Decrescente
-                </button>
-                <button
-                  onClick={() => handleSort('default')}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                    currentOrder === 'default' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                  Ordem de Armazenamento
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
+
+        {isOpen && (
+          <div className="absolute left-0 mt-1 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+            <div className="py-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort('asc');
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                  currentOrder === 'asc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                }`}
+              >
+                <ArrowUp className="h-4 w-4" />
+                Ordem Crescente
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort('desc');
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                  currentOrder === 'desc' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                }`}
+              >
+                <ArrowDown className="h-4 w-4" />
+                Ordem Decrescente
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSort('default');
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                  currentOrder === 'default' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                }`}
+              >
+                <List className="h-4 w-4" />
+                Ordem de Armazenamento
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </th>
   );

@@ -66,8 +66,9 @@ export function Parcelas() {
           per_page: limit,
           status: filters.status || undefined,
           movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined,
-          order_by: sortConfig?.field,
-          order_dir: sortConfig?.order === 'asc' ? 'asc' : sortConfig?.order === 'desc' ? 'desc' : undefined
+          // Só enviar order_by e order_dir se não for 'default'
+          order_by: sortConfig && sortConfig.order !== 'default' ? sortConfig.field : undefined,
+          order_dir: sortConfig && sortConfig.order !== 'default' ? (sortConfig.order === 'asc' ? 'asc' : 'desc') : undefined
         });
         data = response.items;
         totalItems = response.total; // Nota: pode não ser o total real devido a limitações do backend
@@ -110,8 +111,10 @@ export function Parcelas() {
   };
 
   const handleSortChange = (field: string, order: SortOrder) => {
+    // Sempre manter o sortConfig para que o ícone correto seja exibido
+    // Quando order é 'default', ainda passamos para o backend como undefined
     if (order === 'default') {
-      setSortConfig(undefined);
+      setSortConfig({ field, order: 'default' });
     } else {
       setSortConfig({ field, order });
     }
@@ -394,12 +397,13 @@ export function Parcelas() {
                   </td>
                 </tr>
               ) : (
-                parcelas.map((parcela) => {
+                parcelas.map((parcela, index) => {
                   const vencida = isVencida(parcela);
+                  const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                   return (
                     <tr
                       key={parcela.idParcelasContas}
-                      className={vencida ? 'bg-red-50 border-l-4 border-red-500' : ''}
+                      className={`${rowClass} ${vencida ? 'border-l-4 border-red-500' : ''}`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                         #{parcela.idParcelasContas}
