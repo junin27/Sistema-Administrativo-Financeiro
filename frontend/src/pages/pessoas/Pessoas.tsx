@@ -39,40 +39,28 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Verifica se há algum filtro ativo
+    // Verifica se há algum filtro ativo (valores não vazios)
     const hasFilters = !!(
-      filters.documento ||
-      filters.tipo ||
-      filters.status ||
-      filters.razaosocial ||
-      filters.fantasia
+      (filters.documento && filters.documento.trim()) ||
+      (filters.tipo && filters.tipo.trim()) ||
+      (filters.status && filters.status.trim()) ||
+      (filters.razaosocial && filters.razaosocial.trim()) ||
+      (filters.fantasia && filters.fantasia.trim())
     );
     
     // Debounce para campos de texto (documento, razaosocial, fantasia)
     const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
     const timeoutId = isTextFilter 
       ? setTimeout(() => {
-          if (hasFilters) {
-            loadPessoas(1, filters);
-          } else {
-            setPessoas([]);
-            setTotalPages(1);
-            setTotal(0);
-            setLoading(false);
-          }
+          // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
+          loadPessoas(1, hasFilters ? filters : {});
         }, 500) // 500ms de debounce para campos de texto
       : null;
     
     if (!isTextFilter) {
       // Para filtros de select, busca imediatamente
-      if (hasFilters) {
-        loadPessoas(1, filters);
-      } else {
-        setPessoas([]);
-        setTotalPages(1);
-        setTotal(0);
-        setLoading(false);
-      }
+      // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
+      loadPessoas(1, hasFilters ? filters : {});
     }
     
     return () => {
@@ -197,7 +185,7 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">TODOS</option>
+                  <option value="">Todos</option>
                   <option value="FORNECEDOR">Fornecedor</option>
                   <option value="CLIENTE">Cliente</option>
                 </select>
@@ -225,7 +213,7 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">TODOS</option>
+                  <option value="">Todos</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="INATIVO">Inativo</option>
                 </select>
