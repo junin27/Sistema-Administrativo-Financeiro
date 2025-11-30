@@ -52,34 +52,39 @@ const PessoaForm: React.FC = () => {
   };
 
   const validateDocument = (documento: string): boolean => {
-    // Remove caracteres não numéricos
+    // Remove caracteres não numéricos (caso ainda tenha algum)
     const cleanDoc = documento.replace(/\D/g, '');
     
     if (cleanDoc.length === 11) {
       // Validação CPF
+      // Verifica se todos os dígitos são iguais
       if (/^(\d)\1{10}$/.test(cleanDoc)) {
         setDocumentError('CPF inválido');
         return false;
       }
       
+      // Validação do primeiro dígito verificador
       let sum = 0;
       for (let i = 0; i < 9; i++) {
         sum += parseInt(cleanDoc.charAt(i)) * (10 - i);
       }
-      let remainder = (sum * 10) % 11;
-      if (remainder === 10 || remainder === 11) remainder = 0;
-      if (remainder !== parseInt(cleanDoc.charAt(9))) {
+      let remainder = sum % 11;
+      let firstDigit = remainder < 2 ? 0 : 11 - remainder;
+      
+      if (firstDigit !== parseInt(cleanDoc.charAt(9))) {
         setDocumentError('CPF inválido');
         return false;
       }
       
+      // Validação do segundo dígito verificador
       sum = 0;
       for (let i = 0; i < 10; i++) {
         sum += parseInt(cleanDoc.charAt(i)) * (11 - i);
       }
-      remainder = (sum * 10) % 11;
-      if (remainder === 10 || remainder === 11) remainder = 0;
-      if (remainder !== parseInt(cleanDoc.charAt(10))) {
+      remainder = sum % 11;
+      let secondDigit = remainder < 2 ? 0 : 11 - remainder;
+      
+      if (secondDigit !== parseInt(cleanDoc.charAt(10))) {
         setDocumentError('CPF inválido');
         return false;
       }
@@ -145,11 +150,20 @@ const PessoaForm: React.FC = () => {
 
   const handleInputChange = (field: keyof PessoaCreate, value: string) => {
     if (field === 'documento') {
+      // Remove caracteres não numéricos para armazenar
       const cleanValue = value.replace(/\D/g, '');
       setFormData(prev => ({ ...prev, [field]: cleanValue }));
-      if (cleanValue.length >= 11) {
+      // Valida apenas quando tiver 11 ou 14 dígitos completos
+      if (cleanValue.length === 11 || cleanValue.length === 14) {
         validateDocument(cleanValue);
-      } else {
+      } else if (cleanValue.length > 0 && cleanValue.length < 11) {
+        // Se está digitando CPF mas ainda não completou, limpa o erro
+        setDocumentError(null);
+      } else if (cleanValue.length > 11 && cleanValue.length < 14) {
+        // Se está digitando CNPJ mas ainda não completou, limpa o erro
+        setDocumentError(null);
+      } else if (cleanValue.length === 0) {
+        // Se limpou o campo, remove o erro
         setDocumentError(null);
       }
     } else {

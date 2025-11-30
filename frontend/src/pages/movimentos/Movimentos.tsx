@@ -337,7 +337,7 @@ const Movimentos: React.FC = () => {
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selecione</option>
+                  <option value="">TODOS</option>
                   <option value="RECEITA">Receita</option>
                   <option value="DESPESA">Despesa</option>
                 </select>
@@ -352,7 +352,7 @@ const Movimentos: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selecione</option>
+                  <option value="">TODOS</option>
                   <option value="PENDENTE">Pendente</option>
                   <option value="PAGO">Pago</option>
                   <option value="CANCELADO">Cancelado</option>

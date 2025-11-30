@@ -25,6 +25,7 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = currentSort?.field === field;
+  // Se não há ordenação definida, mostra 'default' (Ordem de Armazenamento) como selecionada
   const currentOrder = isActive ? (currentSort.order || 'default') : 'default';
 
   useEffect(() => {
@@ -49,11 +50,8 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
   };
 
   const getIcon = () => {
-    // Se não está ativo, mostra ChevronDown
-    if (!isActive) {
-      return <ChevronDown className="h-4 w-4 text-gray-400" />;
-    }
-    // Se está ativo, mostra o ícone baseado na ordem atual
+    // Sempre mostra o ícone baseado na ordem atual
+    // Se não há ordenação ativa, mostra 'default' (Ordem de Armazenamento) como selecionada
     switch (currentOrder) {
       case 'asc':
         return <ArrowUp className="h-4 w-4 text-blue-600" />;
@@ -62,7 +60,7 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
       case 'default':
         return <List className="h-4 w-4 text-blue-600" />;
       default:
-        return <ChevronDown className="h-4 w-4 text-gray-400" />;
+        return <List className="h-4 w-4 text-blue-600" />;
     }
   };
 
@@ -80,7 +78,7 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
           </span>
           <div
             className={`flex items-center justify-center p-1 rounded hover:bg-blue-50 transition-colors ${
-              isActive ? 'text-blue-600' : 'text-gray-400'
+              'text-blue-600'
             }`}
             title="Ordenar coluna"
           >
@@ -121,7 +119,7 @@ export const SortableTableHeader: React.FC<SortableTableHeaderProps> = ({
                   handleSort('default');
                 }}
                 className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 ${
-                  currentOrder === 'default' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                  currentOrder === 'default' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
                 }`}
               >
                 <List className="h-4 w-4" />

@@ -9,28 +9,24 @@ import type { ApiError } from '../types/entities';
 
 // Configuração base do axios
 const getBaseUrl = () => {
-  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  globalThis['console']?.debug('[API] VITE_API_URL raw:', import.meta.env.VITE_API_URL);
-  globalThis['console']?.debug('[API] window.protocol:', typeof window !== 'undefined' ? window.location.protocol : 'no-window');
+  // No navegador (client-side), usa o proxy do Vite que redireciona /api para o backend
+  // O Vite está configurado para fazer proxy de /api para http://backend:8000 (Docker) ou localhost:8000 (local)
+  if (typeof window !== 'undefined') {
+    // Client-side: usa caminho relativo para o proxy do Vite funcionar
+    const url = '/api/v1';
+    globalThis['console']?.debug('[API] API Base URL (client - usando proxy Vite):', url);
+    return url;
+  }
   
-  // Remove espaços em branco extras
+  // Server-side (SSR): usa a URL completa
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
   url = url.trim();
-
-  // Garante que a URL tenha protocolo
+  
   if (!/^https?:\/\//i.test(url)) {
-    const protocol = (typeof window !== 'undefined' && window.location.protocol === 'https:') ? 'https://' : 'http://';
-    url = `${protocol}${url}`;
-  }
-
-  // Se a página estiver em HTTPS e a API em HTTP, força HTTPS para evitar Mixed Content
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    // Substitui http:// por https:// (case insensitive)
-    if (/^http:\/\//i.test(url)) {
-      url = url.replace(/^http:\/\//i, 'https://');
-    }
+    url = `http://${url}`;
   }
   
-  globalThis['console']?.debug('[API] API Base URL:', url);
+  globalThis['console']?.debug('[API] API Base URL (server):', url);
   return url;
 };
 
