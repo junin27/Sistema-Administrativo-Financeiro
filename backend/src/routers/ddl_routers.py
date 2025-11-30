@@ -59,6 +59,9 @@ async def list_pessoas(
     repo = PessoasRepository(db)
     skip = (page - 1) * size
     
+    # Corrigir filtros: tratar '' como None para 'Todos'
+    tipo = tipo if tipo not in (None, "") else None
+    status = status if status not in (None, "") else None
     # Aplicar filtros combinados
     if documento or search or tipo or status:
         items, total = repo.find_with_filters_paginated(
