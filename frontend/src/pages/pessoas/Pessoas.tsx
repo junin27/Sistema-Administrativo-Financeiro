@@ -197,9 +197,9 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selecione</option>
-                  <option value="fornecedor">Fornecedor</option>
-                  <option value="cliente">Cliente</option>
+                  <option value="">TODOS</option>
+                  <option value="FORNECEDOR">Fornecedor</option>
+                  <option value="CLIENTE">Cliente</option>
                 </select>
               </div>
               
@@ -225,7 +225,7 @@ const Pessoas: React.FC = () => {
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Selecione</option>
+                  <option value="">TODOS</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="INATIVO">Inativo</option>
                 </select>
