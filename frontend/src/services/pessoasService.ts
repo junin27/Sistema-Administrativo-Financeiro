@@ -76,39 +76,37 @@ class PessoasService {
     if (params?.filters?.order_by) queryParams.append('order_by', params.filters.order_by);
     if (params?.filters?.order_dir) queryParams.append('order_dir', params.filters.order_dir);
 
-    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
-    const response = await api.get(`${path}?${queryParams.toString()}`);
+    const response = await api.get(`/pessoas?${queryParams.toString()}`);
     return response.data;
   }
 
   async getById(id: number): Promise<Pessoa> {
-    const response = await api.get(`${this.baseUrl}/${id}`);
+    const response = await api.get(`/pessoas/${id}`);
     return response.data;
   }
 
   async create(pessoa: PessoaCreate): Promise<Pessoa> {
-    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
-    const response = await api.post(path, pessoa);
+    const response = await api.post('/pessoas', pessoa);
     return response.data;
   }
 
   async update(id: number, pessoa: PessoaUpdate): Promise<Pessoa> {
-    const response = await api.put(`${this.baseUrl}/${id}`, pessoa);
+    const response = await api.put(`/pessoas/${id}`, pessoa);
     return response.data;
   }
 
   async delete(id: number): Promise<void> {
-    await api.delete(`${this.baseUrl}/${id}`);
+    await api.delete(`/pessoas/${id}`);
   }
 
   async searchByName(name: string): Promise<Pessoa[]> {
-    const response = await api.get(`${this.baseUrl}/search?name=${encodeURIComponent(name)}`);
+    const response = await api.get(`/pessoas/search?name=${encodeURIComponent(name)}`);
     return response.data;
   }
 
   async findByDocumento(documento: string): Promise<Pessoa | null> {
     try {
-      const response = await api.get(`${this.baseUrl}/documento/${documento}`);
+      const response = await api.get(`/pessoas/documento/${documento}`);
       return response.data;
     } catch (error: unknown) {
       const err = error as AxiosError;
