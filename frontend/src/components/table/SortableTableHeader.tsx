@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ArrowUp, ArrowDown, List } from 'lucide-react';
+import { ArrowUp, ArrowDown, List } from 'lucide-react';
 
 export type SortOrder = 'asc' | 'desc' | 'default';
 
