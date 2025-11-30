@@ -57,7 +57,7 @@ export interface PessoasListResponse {
 }
 
 class PessoasService {
-  private baseUrl = '/pessoas';
+  private baseUrl = '/api/v1/pessoas';
 
   async getAll(params?: {
     page?: number;
