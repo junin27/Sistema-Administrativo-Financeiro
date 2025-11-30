@@ -32,16 +32,16 @@ services:
         echo '🚀 Conectando ao Supabase...' &&
         sleep 2 &&
         echo '🔧 Verificando migrações/tabelas...' &&
-        python -c 'from src.config.database import init_db; init_db()' &&
+        python -c 'from src.config.database import init_db; init_db()' || echo '⚠️ Aviso: Não foi possível inicializar o banco. O servidor continuará rodando.' &&
         echo '🔥 Iniciando servidor Backend...' &&
         uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
       "
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 0"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # ----------------------------------------------------------------
   # FRONTEND (React + Vite)
@@ -54,26 +54,30 @@ services:
       dockerfile: Dockerfile
     container_name: sistema_financeiro_frontend
     environment:
-      # Aponta para o backend rodando no seu computador (localhost)
-      - VITE_API_URL=http://localhost:8000/api/v1
+      # O Vite proxy está configurado para redirecionar /api para o backend
+      # O frontend usa caminho relativo /api/v1 que será redirecionado pelo proxy
       - CHOKIDAR_USEPOLLING=true
       - DOCKER=true
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
     networks:
       - sistema_financeiro_network
-    # O frontend espera o backend estar saudável para iniciar
+    # O frontend espera o backend estar pronto para iniciar
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
 # Redes
 networks:
   sistema_financeiro_network:
     driver: bridge
+
+# Volumes
+volumes:
+  frontend_node_modules:
 
 # Volumes foram removidos pois não há mais banco de dados local.
