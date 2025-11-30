@@ -55,8 +55,6 @@ const Pessoas: React.FC = () => {
     if (filters.order_by) cleanFilters.order_by = filters.order_by;
     if (filters.order_dir) cleanFilters.order_dir = filters.order_dir;
     
-    const hasFilters = Object.keys(cleanFilters).length > 0;
-    
     // Debounce para campos de texto (documento, razaosocial, fantasia)
     const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
     const timeoutId = isTextFilter 
@@ -78,13 +76,14 @@ const Pessoas: React.FC = () => {
   }, [loadPessoas, filters]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
-    // Se o valor for vazio, remove o filtro (undefined)
+    // Se o valor for vazio ou 'none', remove o filtro
     // Se tiver valor, usa o valor normalmente
-    const newFilters = { ...filters };
+    const newFilters: PessoaFilter = { ...filters };
     if (value === '' || value === 'none') {
       delete newFilters[field];
     } else {
-      newFilters[field] = value;
+      // TypeScript precisa de type assertion para campos opcionais
+      (newFilters as any)[field] = value;
     }
     setFilters(newFilters);
   };
