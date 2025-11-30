@@ -48,8 +48,8 @@ const Pessoas: React.FC = () => {
     // Limpa filtros vazios antes de verificar
     const cleanFilters: PessoaFilter = {};
     if (filters.documento && filters.documento.trim()) cleanFilters.documento = filters.documento.trim();
-    if (filters.tipo && filters.tipo.trim() && filters.tipo !== 'none') cleanFilters.tipo = filters.tipo.trim();
-    if (filters.status && filters.status.trim() && filters.status !== 'none') cleanFilters.status = filters.status.trim();
+    if (filters.tipo !== undefined) cleanFilters.tipo = filters.tipo;
+    if (filters.status !== undefined) cleanFilters.status = filters.status;
     if (filters.razaosocial && filters.razaosocial.trim()) cleanFilters.razaosocial = filters.razaosocial.trim();
     if (filters.fantasia && filters.fantasia.trim()) cleanFilters.fantasia = filters.fantasia.trim();
     if (filters.order_by) cleanFilters.order_by = filters.order_by;
@@ -76,13 +76,12 @@ const Pessoas: React.FC = () => {
   }, [loadPessoas, filters]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
-    // Se o valor for vazio ou 'none', remove o filtro
-    // Se tiver valor, usa o valor normalmente
+    // Se o valor for '__empty', volta para o placeholder (nenhum selecionado)
+    // Se for '', mantém explicitamente o filtro como 'Todos'
     const newFilters: PessoaFilter = { ...filters };
-    if (value === '' || value === 'none') {
+    if (value === '__empty') {
       delete newFilters[field];
     } else {
-      // TypeScript precisa de type assertion para campos opcionais
       (newFilters as any)[field] = value;
     }
     setFilters(newFilters);
