@@ -21,12 +21,13 @@ const Pessoas: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[DEBUG] Filtros enviados para API:', { page, size: pageSize, filters: currentFilters });
       const response = await pessoasService.getAll({
         page,
         size: pageSize,
         filters: currentFilters
       });
-      
+      console.log('[DEBUG] Resposta da API:', response);
       // Garantir que items seja sempre um array
       setPessoas(response?.items || []);
       setTotalPages(response?.pages || 1);
@@ -39,6 +40,7 @@ const Pessoas: React.FC = () => {
       setPessoas([]);
       setTotalPages(1);
       setTotal(0);
+      console.error('[DEBUG] Erro ao carregar pessoas:', error);
     } finally {
       setLoading(false);
     }
