@@ -45,28 +45,31 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Verifica se há algum filtro ativo (valores não vazios)
-    const hasFilters = !!(
-      (filters.documento && filters.documento.trim()) ||
-      (filters.tipo && filters.tipo.trim()) ||
-      (filters.status && filters.status.trim()) ||
-      (filters.razaosocial && filters.razaosocial.trim()) ||
-      (filters.fantasia && filters.fantasia.trim())
-    );
+    // Limpa filtros vazios antes de verificar
+    const cleanFilters: PessoaFilter = {};
+    if (filters.documento && filters.documento.trim()) cleanFilters.documento = filters.documento.trim();
+    if (filters.tipo && filters.tipo.trim() && filters.tipo !== 'none') cleanFilters.tipo = filters.tipo.trim();
+    if (filters.status && filters.status.trim() && filters.status !== 'none') cleanFilters.status = filters.status.trim();
+    if (filters.razaosocial && filters.razaosocial.trim()) cleanFilters.razaosocial = filters.razaosocial.trim();
+    if (filters.fantasia && filters.fantasia.trim()) cleanFilters.fantasia = filters.fantasia.trim();
+    if (filters.order_by) cleanFilters.order_by = filters.order_by;
+    if (filters.order_dir) cleanFilters.order_dir = filters.order_dir;
+    
+    const hasFilters = Object.keys(cleanFilters).length > 0;
     
     // Debounce para campos de texto (documento, razaosocial, fantasia)
     const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
     const timeoutId = isTextFilter 
       ? setTimeout(() => {
           // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
-          loadPessoas(1, hasFilters ? filters : {});
+          loadPessoas(1, cleanFilters);
         }, 500) // 500ms de debounce para campos de texto
       : null;
     
     if (!isTextFilter) {
       // Para filtros de select, busca imediatamente
       // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
-      loadPessoas(1, hasFilters ? filters : {});
+      loadPessoas(1, cleanFilters);
     }
     
     return () => {
@@ -75,7 +78,14 @@ const Pessoas: React.FC = () => {
   }, [loadPessoas, filters]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
-    const newFilters = { ...filters, [field]: value || undefined };
+    // Se o valor for vazio, remove o filtro (undefined)
+    // Se tiver valor, usa o valor normalmente
+    const newFilters = { ...filters };
+    if (value === '' || value === 'none') {
+      delete newFilters[field];
+    } else {
+      newFilters[field] = value;
+    }
     setFilters(newFilters);
   };
 
@@ -187,11 +197,11 @@ const Pessoas: React.FC = () => {
                   Tipo
                 </label>
                 <select
-                  value={filters.tipo || ''}
+                  value={filters.tipo || 'none'}
                   onChange={(e) => handleFilterChange('tipo', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="none">Selecione</option>
                   <option value="FORNECEDOR">Fornecedor</option>
                   <option value="CLIENTE">Cliente</option>
                 </select>
@@ -215,11 +225,11 @@ const Pessoas: React.FC = () => {
                   Status
                 </label>
                 <select
-                  value={filters.status || ''}
+                  value={filters.status || 'none'}
                   onChange={(e) => handleFilterChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todos</option>
+                  <option value="none">Selecione</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="INATIVO">Inativo</option>
                 </select>
