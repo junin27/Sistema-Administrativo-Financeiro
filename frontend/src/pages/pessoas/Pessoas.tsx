@@ -196,10 +196,11 @@ const Pessoas: React.FC = () => {
                   Tipo
                 </label>
                 <select
-                  value={filters.tipo || ''}
-                  onChange={(e) => handleFilterChange('tipo', e.target.value)}
+                  value={filters.tipo ?? '__empty'}
+                  onChange={(e) => handleFilterChange('tipo', e.target.value === '__empty' ? '' : e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="__empty" disabled hidden></option>
                   <option value="">Todos</option>
                   <option value="FORNECEDOR">Fornecedor</option>
                   <option value="CLIENTE">Cliente</option>
@@ -224,10 +225,11 @@ const Pessoas: React.FC = () => {
                   Status
                 </label>
                 <select
-                  value={filters.status || ''}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  value={filters.status ?? '__empty'}
+                  onChange={(e) => handleFilterChange('status', e.target.value === '__empty' ? '' : e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="__empty" disabled hidden></option>
                   <option value="">Todos</option>
                   <option value="ATIVO">Ativo</option>
                   <option value="INATIVO">Inativo</option>
