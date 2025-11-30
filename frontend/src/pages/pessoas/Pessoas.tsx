@@ -20,19 +20,25 @@ const Pessoas: React.FC = () => {
   const loadPessoas = useCallback(async (page: number = 1, currentFilters: PessoaFilter = {}) => {
     try {
       setLoading(true);
+      setError(null);
       const response = await pessoasService.getAll({
         page,
         size: pageSize,
         filters: currentFilters
       });
       
-      setPessoas(response.items);
-      setTotalPages(response.pages);
-      setTotal(response.total);
+      // Garantir que items seja sempre um array
+      setPessoas(response?.items || []);
+      setTotalPages(response?.pages || 1);
+      setTotal(response?.total || 0);
       setCurrentPage(page);
     } catch (error) {
       const err = error as AxiosError<{ detail: string }>;
       setError(err.response?.data?.detail || 'Erro ao carregar pessoas');
+      // Em caso de erro, garantir que pessoas seja um array vazio
+      setPessoas([]);
+      setTotalPages(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -273,7 +279,7 @@ const Pessoas: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {pessoas.map((pessoa) => (
+            {(pessoas || []).map((pessoa) => (
               <tr key={pessoa.idPessoas} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatDocument(pessoa.documento)}
@@ -327,7 +333,7 @@ const Pessoas: React.FC = () => {
           </tbody>
         </table>
         
-        {pessoas.length === 0 && (
+        {(!pessoas || pessoas.length === 0) && (
           <div className="text-center py-8 text-gray-500">
             Nenhuma pessoa encontrada
           </div>
