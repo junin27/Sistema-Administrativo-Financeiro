@@ -138,6 +138,41 @@ class PDFAnalyzerAgent:
             except Exception as e:
                 error_str = str(e)
                 
+                # Verifica se é erro de API desabilitada (403 SERVICE_DISABLED)
+                if "403" in error_str or "SERVICE_DISABLED" in error_str or "has not been used" in error_str.lower() or "is disabled" in error_str.lower():
+                    # Extrai URL de ativação se disponível
+                    activation_url = None
+                    project_id = None
+                    import re
+                    url_match = re.search(r'https://console\.developers\.google\.com[^\s\)]+', error_str)
+                    if url_match:
+                        activation_url = url_match.group(0)
+                    project_match = re.search(r'project (\d+)', error_str)
+                    if project_match:
+                        project_id = project_match.group(1)
+                    
+                    error_msg = (
+                        "A API Generative Language do Google não está habilitada no seu projeto Google Cloud.\n\n"
+                        "Para resolver:\n"
+                        "1. Acesse o Google Cloud Console\n"
+                    )
+                    if activation_url:
+                        error_msg += f"2. Habilite a API em: {activation_url}\n"
+                    else:
+                        error_msg += "2. Habilite a API 'Generative Language API' no seu projeto\n"
+                        error_msg += "   Acesse: https://console.developers.google.com/apis/library/generativelanguage.googleapis.com\n"
+                    
+                    if project_id:
+                        error_msg += f"3. Certifique-se de que o projeto {project_id} está selecionado\n"
+                    
+                    error_msg += (
+                        "4. Após habilitar, aguarde alguns minutos para a propagação\n"
+                        "5. Tente novamente\n\n"
+                        "Nota: Se você acabou de habilitar a API, pode levar alguns minutos para ficar ativa."
+                    )
+                    logger.error(f"API do Google não habilitada: {error_str}")
+                    raise PDFProcessingError(error_msg)
+                
                 # Verifica se é erro de quota/rate limit
                 if "429" in error_str or "quota" in error_str.lower() or "rate limit" in error_str.lower():
                     if attempt < max_retries - 1:
