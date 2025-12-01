@@ -442,7 +442,18 @@ const Movimentos: React.FC = () => {
                 <input
                   type="date"
                   value={filters.data_emissao_inicio || ''}
-                  onChange={(e) => handleFilterChange('data_emissao_inicio', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: MovimentoContaFilter = { ...filters };
+                    if (e.target.value) {
+                      newFilters.data_emissao_inicio = e.target.value;
+                      // Remove filtros invisíveis quando há data
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.data_emissao_inicio;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -455,7 +466,18 @@ const Movimentos: React.FC = () => {
                 <input
                   type="date"
                   value={filters.data_emissao_fim || ''}
-                  onChange={(e) => handleFilterChange('data_emissao_fim', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: MovimentoContaFilter = { ...filters };
+                    if (e.target.value) {
+                      newFilters.data_emissao_fim = e.target.value;
+                      // Remove filtros invisíveis quando há data
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.data_emissao_fim;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -467,7 +489,18 @@ const Movimentos: React.FC = () => {
                 <input
                   type="date"
                   value={filters.data_vencimento_inicio || ''}
-                  onChange={(e) => handleFilterChange('data_vencimento_inicio', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: MovimentoContaFilter = { ...filters };
+                    if (e.target.value) {
+                      newFilters.data_vencimento_inicio = e.target.value;
+                      // Remove filtros invisíveis quando há data
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.data_vencimento_inicio;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -479,7 +512,18 @@ const Movimentos: React.FC = () => {
                 <input
                   type="date"
                   value={filters.data_vencimento_fim || ''}
-                  onChange={(e) => handleFilterChange('data_vencimento_fim', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: MovimentoContaFilter = { ...filters };
+                    if (e.target.value) {
+                      newFilters.data_vencimento_fim = e.target.value;
+                      // Remove filtros invisíveis quando há data
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.data_vencimento_fim;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
