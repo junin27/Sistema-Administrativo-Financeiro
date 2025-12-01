@@ -274,7 +274,8 @@ Responda de forma completa e útil:"""
             try:
                 from ...config.settings import settings
                 
-                api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or getattr(settings, "gemini_api_key", "")
+                from ...routers.config_router import get_gemini_api_key
+                api_key = get_gemini_api_key() or ""
                 model_name = getattr(settings, "gemini_model", None) or os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
                 
                 if api_key:

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Brain, Loader2, Info } from 'lucide-react';
 import ragService, { RagResponse, RagSource } from '@/services/ragService';
 import toast from 'react-hot-toast';
+import { GeminiApiKeyModal } from '../../components/GeminiApiKeyModal';
+import configService from '../../services/configService';
 
 type Strategy = 'simples' | 'embeddings';
 
@@ -10,6 +12,23 @@ export const RagConsulta: React.FC = () => {
   const [strategy, setStrategy] = useState<Strategy>('simples');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RagResponse | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+  // Verificar API key ao montar o componente
+  useEffect(() => {
+    const checkApiKey = async () => {
+      try {
+        const response = await configService.checkGeminiApiKey();
+        if (!response.has_api_key) {
+          setShowApiKeyModal(true);
+        }
+      } catch (error) {
+        // Se der erro, mostra o modal mesmo assim
+        setShowApiKeyModal(true);
+      }
+    };
+    checkApiKey();
+  }, []);
 
   const handleAsk = async () => {
     if (!question || question.trim().length < 3) {
@@ -141,6 +160,15 @@ export const RagConsulta: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de API Key */}
+      <GeminiApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        onSuccess={() => {
+          toast.success('API key configurada! Agora você pode fazer consultas RAG.');
+        }}
+      />
     </div>
   );
 };

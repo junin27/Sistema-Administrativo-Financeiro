@@ -44,13 +44,9 @@ class PDFAnalyzerAgent:
             logger.warning("Bibliotecas PDF/IA não disponíveis. PDFAnalyzerAgent não pode ser utilizado.")
             raise PDFProcessingError("Bibliotecas google.generativeai e PyPDF2 não estão instaladas")
         
-        # Tenta obter a API key de múltiplas fontes
-        self.gemini_api_key = (
-            os.getenv("GEMINI_API_KEY") or 
-            os.getenv("GOOGLE_API_KEY") or 
-            settings.gemini_api_key or 
-            ""
-        )
+        # Tenta obter a API key de múltiplas fontes (incluindo memória)
+        from ..routers.config_router import get_gemini_api_key
+        self.gemini_api_key = get_gemini_api_key() or ""
         
         if not self.gemini_api_key or self.gemini_api_key.strip() == "":
             error_msg = (
