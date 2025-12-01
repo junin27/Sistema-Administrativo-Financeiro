@@ -24,17 +24,19 @@ import { ParcelaForm } from '../../components/parcelas/ParcelaForm';
 import type { Parcela, ParcelaCreate, ParcelaUpdate, ParcelaStatus } from '../../types/entities';
 import { SortableTableHeader, SortOrder } from '../../components/table/SortableTableHeader';
 
+// Valor especial para filtro invisível (não aparece para o usuário)
+const HIDDEN_FILTER_VALUE = '__HIDDEN__';
+
 export function Parcelas() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters] = useState(true);
-  const [statusSelected, setStatusSelected] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingParcela, setEditingParcela] = useState<Parcela | undefined>();
 
-  // Filtros
+  // Filtros - inicializa com filtro invisível ativo
   const [filters, setFilters] = useState({
-    status: '' as '' | 'PENDENTE' | 'PAGA' | 'VENCIDA' | 'CANCELADA',
+    status: HIDDEN_FILTER_VALUE as any,
     movimentoId: '',
     tipo: '' as '' | 'vencidas' | 'a-vencer',
   });
@@ -61,10 +63,15 @@ export function Parcelas() {
         totalItems = data.length;
       } else {
         // Usa o método list que suporta paginação e filtros no backend
+        // Remove filtro invisível - não envia para API
+        const statusFilter = filters.status && filters.status !== HIDDEN_FILTER_VALUE 
+          ? filters.status 
+          : undefined;
+        
         const response = await parcelasService.list({
           page,
           per_page: limit,
-          status: filters.status || undefined,
+          status: statusFilter,
           movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined,
           // Só enviar order_by e order_dir se não for 'default'
           order_by: sortConfig && sortConfig.order !== 'default' ? sortConfig.field : undefined,
@@ -84,14 +91,22 @@ export function Parcelas() {
   };
 
   useEffect(() => {
-    if (statusSelected || filters.tipo) {
-      loadParcelas();
-    } else {
+    // Verifica se há filtro invisível ativo E não há outros filtros
+    const hasHiddenFilter = filters.status === HIDDEN_FILTER_VALUE;
+    const hasOtherFilters = !!(filters.tipo || filters.movimentoId);
+    
+    // Só bloqueia se o filtro estiver invisível E não houver outros filtros
+    if (hasHiddenFilter && !hasOtherFilters) {
       setParcelas([]);
       setTotal(0);
+      setPage(1);
+      return;
     }
+    
+    // Carrega parcelas se houver algum filtro ativo
+    loadParcelas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.tipo, filters.movimentoId, statusSelected, sortConfig]);
+  }, [page, filters.tipo, filters.movimentoId, filters.status, sortConfig]);
 
   // Aplicar filtros
   const applyFilters = () => {
@@ -101,8 +116,9 @@ export function Parcelas() {
 
   // Limpar filtros
   const clearFilters = () => {
+    // Volta para o estado inicial com filtro invisível ativo
     setFilters({
-      status: '',
+      status: HIDDEN_FILTER_VALUE as any,
       movimentoId: '',
       tipo: '',
     });
@@ -298,11 +314,27 @@ export function Parcelas() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
               <select
-                value={filters.status}
-                onChange={(e) => { setFilters({ ...filters, status: e.target.value as ParcelaStatus }); setStatusSelected(true); }}
+                value={
+                  filters.status === HIDDEN_FILTER_VALUE 
+                    ? '__empty' 
+                    : (filters.status === undefined || filters.status === '' ? '' : filters.status)
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const newFilters = { ...filters };
+                  if (val === '__empty') {
+                    newFilters.status = HIDDEN_FILTER_VALUE as any;
+                  } else if (val === '') {
+                    delete newFilters.status;
+                  } else {
+                    newFilters.status = val as ParcelaStatus;
+                  }
+                  setFilters(newFilters);
+                }}
                 className="input-field"
               >
-                <option value="">Selecione</option>
+                <option value="__empty" disabled hidden></option>
+                <option value="">Todos</option>
                 <option value="PENDENTE">Pendente</option>
                 <option value="PAGA">Paga</option>
                 <option value="VENCIDA">Vencida</option>
@@ -315,7 +347,19 @@ export function Parcelas() {
               <input
                 type="number"
                 value={filters.movimentoId}
-                onChange={(e) => setFilters({ ...filters, movimentoId: e.target.value })}
+                onChange={(e) => {
+                  const newFilters = { ...filters };
+                  if (e.target.value.trim()) {
+                    newFilters.movimentoId = e.target.value;
+                    // Remove filtro invisível quando há texto
+                    if (newFilters.status === HIDDEN_FILTER_VALUE) {
+                      delete newFilters.status;
+                    }
+                  } else {
+                    newFilters.movimentoId = '';
+                  }
+                  setFilters(newFilters);
+                }}
                 className="input-field"
                 placeholder="Filtrar por movimento"
               />
