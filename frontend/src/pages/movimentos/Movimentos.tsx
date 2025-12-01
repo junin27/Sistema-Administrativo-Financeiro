@@ -24,6 +24,30 @@ type MovimentoContaFilterWithHidden = Omit<MovimentoContaFilter, 'tipo' | 'statu
   status?: 'PENDENTE' | 'PAGO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE;
 };
 
+// Função helper para converter MovimentoContaFilterWithHidden para MovimentoContaFilter
+const convertToMovimentoContaFilter = (filters: MovimentoContaFilterWithHidden): MovimentoContaFilter => {
+  const cleanFilters: MovimentoContaFilter = {};
+  if (filters.numeronotafiscal && filters.numeronotafiscal.trim()) cleanFilters.numeronotafiscal = filters.numeronotafiscal.trim();
+  if (filters.fornecedor_id) cleanFilters.fornecedor_id = filters.fornecedor_id;
+  if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
+    if (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA') {
+      cleanFilters.tipo = filters.tipo;
+    }
+  }
+  if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
+    if (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO') {
+      cleanFilters.status = filters.status;
+    }
+  }
+  if (filters.data_emissao_inicio) cleanFilters.data_emissao_inicio = filters.data_emissao_inicio;
+  if (filters.data_emissao_fim) cleanFilters.data_emissao_fim = filters.data_emissao_fim;
+  if (filters.data_vencimento_inicio) cleanFilters.data_vencimento_inicio = filters.data_vencimento_inicio;
+  if (filters.data_vencimento_fim) cleanFilters.data_vencimento_fim = filters.data_vencimento_fim;
+  if (filters.order_by) cleanFilters.order_by = filters.order_by;
+  if (filters.order_dir) cleanFilters.order_dir = filters.order_dir;
+  return cleanFilters;
+};
+
 const Movimentos: React.FC = () => {
   const [movimentos, setMovimentos] = useState<MovimentoConta[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
@@ -93,26 +117,7 @@ const Movimentos: React.FC = () => {
     }
     
     // Limpa filtros e remove filtro invisível antes de enviar para API
-    const cleanFilters: MovimentoContaFilter = {};
-    if (filters.numeronotafiscal && filters.numeronotafiscal.trim()) cleanFilters.numeronotafiscal = filters.numeronotafiscal.trim();
-    if (filters.fornecedor_id) cleanFilters.fornecedor_id = filters.fornecedor_id;
-    // Remove filtro invisível - não envia para API
-    if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
-      if (filters.tipo !== '' && (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA')) {
-        cleanFilters.tipo = filters.tipo;
-      }
-    }
-    if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
-      if (filters.status !== '' && (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO')) {
-        cleanFilters.status = filters.status;
-      }
-    }
-    if (filters.data_emissao_inicio) cleanFilters.data_emissao_inicio = filters.data_emissao_inicio;
-    if (filters.data_emissao_fim) cleanFilters.data_emissao_fim = filters.data_emissao_fim;
-    if (filters.data_vencimento_inicio) cleanFilters.data_vencimento_inicio = filters.data_vencimento_inicio;
-    if (filters.data_vencimento_fim) cleanFilters.data_vencimento_fim = filters.data_vencimento_fim;
-    if (filters.order_by) cleanFilters.order_by = filters.order_by;
-    if (filters.order_dir) cleanFilters.order_dir = filters.order_dir;
+    const cleanFilters = convertToMovimentoContaFilter(filters);
     
     // Debounce para campos de texto (numeronotafiscal)
     const isTextFilter = !!filters.numeronotafiscal;
@@ -168,7 +173,7 @@ const Movimentos: React.FC = () => {
     if (window.confirm('Tem certeza que deseja excluir este movimento?')) {
       try {
         await movimentosService.delete(id);
-        loadMovimentos(currentPage, filters, showInactive);
+        loadMovimentos(currentPage, convertToMovimentoContaFilter(filters), showInactive);
       } catch (err) {
         const error = err as AxiosError<{ detail: string }>;
         setError(error.response?.data?.detail || 'Erro ao excluir movimento');
@@ -179,7 +184,7 @@ const Movimentos: React.FC = () => {
   const handleMarcarComoPago = async (id: number) => {
     try {
       await movimentosService.marcarComoPago(id);
-      loadMovimentos(currentPage, filters, showInactive);
+      loadMovimentos(currentPage, convertToMovimentoContaFilter(filters), showInactive);
     } catch (err) {
       const error = err as AxiosError<{ detail: string }>;
       setError(error.response?.data?.detail || 'Erro ao marcar como pago');
@@ -190,7 +195,7 @@ const Movimentos: React.FC = () => {
     if (window.confirm('Tem certeza que deseja cancelar este movimento?')) {
       try {
         await movimentosService.cancelar(id);
-        loadMovimentos(currentPage, filters, showInactive);
+        loadMovimentos(currentPage, convertToMovimentoContaFilter(filters), showInactive);
       } catch (err) {
         const error = err as AxiosError<{ detail: string }>;
         setError(error.response?.data?.detail || 'Erro ao cancelar movimento');
@@ -388,7 +393,7 @@ const Movimentos: React.FC = () => {
                   value={
                     filters.tipo === HIDDEN_FILTER_VALUE 
                       ? '__empty' 
-                      : (filters.tipo === undefined || filters.tipo === '' ? '' : filters.tipo)
+                      : (filters.tipo === undefined ? '' : filters.tipo)
                   }
                   onChange={(e) => {
                     const val = e.target.value;
@@ -419,7 +424,7 @@ const Movimentos: React.FC = () => {
                   value={
                     filters.status === HIDDEN_FILTER_VALUE 
                       ? '__empty' 
-                      : (filters.status === undefined || filters.status === '' ? '' : filters.status)
+                      : (filters.status === undefined ? '' : filters.status)
                   }
                   onChange={(e) => {
                     const val = e.target.value;
@@ -688,14 +693,14 @@ const Movimentos: React.FC = () => {
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => loadMovimentos(currentPage - 1, filters, showInactive)}
+                onClick={() => loadMovimentos(currentPage - 1, convertToMovimentoContaFilter(filters), showInactive)}
                 disabled={currentPage === 1}
                 className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 Anterior
               </button>
               <button
-                onClick={() => loadMovimentos(currentPage + 1, filters, showInactive)}
+                onClick={() => loadMovimentos(currentPage + 1, convertToMovimentoContaFilter(filters), showInactive)}
                 disabled={currentPage === totalPages}
                 className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
@@ -712,7 +717,7 @@ const Movimentos: React.FC = () => {
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                   <button
-                    onClick={() => loadMovimentos(currentPage - 1, filters, showInactive)}
+                    onClick={() => loadMovimentos(currentPage - 1, convertToMovimentoContaFilter(filters), showInactive)}
                     disabled={currentPage === 1}
                     className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
@@ -722,7 +727,7 @@ const Movimentos: React.FC = () => {
                   {[...Array(totalPages)].map((_, i) => (
                     <button
                       key={i + 1}
-                      onClick={() => loadMovimentos(i + 1, filters, showInactive)}
+                      onClick={() => loadMovimentos(i + 1, convertToMovimentoContaFilter(filters), showInactive)}
                       className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                         currentPage === i + 1
                           ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
@@ -733,7 +738,7 @@ const Movimentos: React.FC = () => {
                     </button>
                   ))}
                   <button
-                    onClick={() => loadMovimentos(currentPage + 1, filters, showInactive)}
+                    onClick={() => loadMovimentos(currentPage + 1, convertToMovimentoContaFilter(filters), showInactive)}
                     disabled={currentPage === totalPages}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                   >
