@@ -54,11 +54,12 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Verifica se há filtro invisível ativo
-    const hasHiddenFilter = filters.tipo === HIDDEN_FILTER_VALUE || filters.status === HIDDEN_FILTER_VALUE;
+    // Verifica se AMBOS os filtros estão invisíveis E não há texto
+    const bothHidden = filters.tipo === HIDDEN_FILTER_VALUE && filters.status === HIDDEN_FILTER_VALUE;
+    const hasTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
     
-    // Se há filtro invisível ativo, não carrega dados
-    if (hasHiddenFilter && !filters.documento && !filters.razaosocial && !filters.fantasia) {
+    // Só bloqueia se AMBOS estiverem invisíveis E não houver texto
+    if (bothHidden && !hasTextFilter) {
       setPessoas([]);
       setTotal(0);
       setTotalPages(1);
@@ -70,8 +71,19 @@ const Pessoas: React.FC = () => {
     const cleanFilters: PessoaFilter = {};
     if (filters.documento && filters.documento.trim()) cleanFilters.documento = filters.documento.trim();
     // Remove filtro invisível - não envia para API
-    if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) cleanFilters.tipo = filters.tipo;
-    if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) cleanFilters.status = filters.status;
+    // Se o filtro não for invisível, inclui na busca (mesmo que seja vazio, que significa "todos")
+    if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
+      // Se for string vazia, não inclui (mostra todos)
+      if (filters.tipo !== '') {
+        cleanFilters.tipo = filters.tipo;
+      }
+    }
+    if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
+      // Se for string vazia, não inclui (mostra todos)
+      if (filters.status !== '') {
+        cleanFilters.status = filters.status;
+      }
+    }
     if (filters.razaosocial && filters.razaosocial.trim()) cleanFilters.razaosocial = filters.razaosocial.trim();
     if (filters.fantasia && filters.fantasia.trim()) cleanFilters.fantasia = filters.fantasia.trim();
     if (filters.order_by) cleanFilters.order_by = filters.order_by;
@@ -218,13 +230,18 @@ const Pessoas: React.FC = () => {
                   Tipo
                 </label>
                 <select
-                  value={filters.tipo === HIDDEN_FILTER_VALUE ? '__empty' : (filters.tipo ?? '__empty')}
+                  value={
+                    filters.tipo === HIDDEN_FILTER_VALUE 
+                      ? '__empty' 
+                      : (filters.tipo === undefined || filters.tipo === '' ? '' : filters.tipo)
+                  }
                   onChange={(e) => {
                     const val = e.target.value;
                     const newFilters: PessoaFilter = { ...filters };
                     if (val === '__empty') {
                       newFilters.tipo = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
+                      // "Todos" - remove o filtro para mostrar todos
                       delete newFilters.tipo;
                     } else {
                       newFilters.tipo = val;
@@ -269,13 +286,18 @@ const Pessoas: React.FC = () => {
                   Status
                 </label>
                 <select
-                  value={filters.status === HIDDEN_FILTER_VALUE ? '__empty' : (filters.status ?? '__empty')}
+                  value={
+                    filters.status === HIDDEN_FILTER_VALUE 
+                      ? '__empty' 
+                      : (filters.status === undefined || filters.status === '' ? '' : filters.status)
+                  }
                   onChange={(e) => {
                     const val = e.target.value;
                     const newFilters: PessoaFilter = { ...filters };
                     if (val === '__empty') {
                       newFilters.status = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
+                      // "Todos" - remove o filtro para mostrar todos
                       delete newFilters.status;
                     } else {
                       newFilters.status = val;
