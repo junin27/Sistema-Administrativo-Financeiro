@@ -73,7 +73,11 @@ class PDFProcessingService:
             return
             
         try:
-            genai.configure(api_key=settings.gemini_api_key)  # type: ignore
+            from ..config.gemini_config import get_gemini_api_key
+            api_key = get_gemini_api_key()
+            if not api_key:
+                raise ValueError("API key do Gemini não configurada")
+            genai.configure(api_key=api_key)  # type: ignore
             self.model = genai.GenerativeModel('gemini-2.5-flash')  # type: ignore
             logger.info("Google Gemini AI configurado com sucesso")
         except Exception as e:

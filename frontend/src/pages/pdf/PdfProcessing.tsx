@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { FileText, Upload, CheckCircle, AlertCircle, Loader2, Eye, Code, Save, Layout, Database, Trash2, Search } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { ProcessamentoPDFResponse } from '../../types/pdf';
 import pdfService from '../../services/pdfService';
+import { GeminiApiKeyModal } from '../../components/GeminiApiKeyModal';
+import configService from '../../services/configService';
 
 interface ProcessedData extends ProcessamentoPDFResponse {}
 
@@ -16,6 +18,23 @@ export function PdfProcessing() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+  // Verificar API key ao montar o componente
+  useEffect(() => {
+    const checkApiKey = async () => {
+      try {
+        const response = await configService.checkGeminiApiKey();
+        if (!response.has_api_key) {
+          setShowApiKeyModal(true);
+        }
+      } catch (error) {
+        // Se der erro, mostra o modal mesmo assim
+        setShowApiKeyModal(true);
+      }
+    };
+    checkApiKey();
+  }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -734,6 +753,15 @@ export function PdfProcessing() {
           )}
         </div>
       )}
+
+      {/* Modal de API Key */}
+      <GeminiApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        onSuccess={() => {
+          toast.success('API key configurada! Agora você pode processar PDFs.');
+        }}
+      />
     </div>
   );
 }
