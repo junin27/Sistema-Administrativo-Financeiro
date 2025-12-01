@@ -75,7 +75,7 @@ class PessoasService {
     if (params?.filters?.order_by) queryParams.append('order_by', params.filters.order_by);
     if (params?.filters?.order_dir) queryParams.append('order_dir', params.filters.order_dir);
 
-    const response = await api.get(`/pessoas?${queryParams.toString()}`);
+    const response = await api.get(`/pessoas/?${queryParams.toString()}`);
     return response.data;
   }
 
@@ -85,7 +85,7 @@ class PessoasService {
   }
 
   async create(pessoa: PessoaCreate): Promise<Pessoa> {
-    const response = await api.post('/pessoas', pessoa);
+    const response = await api.post('/pessoas/', pessoa);
     return response.data;
   }
 
