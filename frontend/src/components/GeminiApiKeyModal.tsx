@@ -13,7 +13,6 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,7 +24,6 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
     setIsChecking(true);
     try {
       const response = await configService.checkGeminiApiKey();
-      setHasApiKey(response.has_api_key);
       if (response.has_api_key) {
         // Se já tem API key, fecha o modal após um breve delay
         setTimeout(() => {
@@ -35,7 +33,6 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
       }
     } catch (error) {
       console.error('Erro ao verificar API key:', error);
-      setHasApiKey(false);
     } finally {
       setIsChecking(false);
     }
@@ -59,7 +56,6 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
     try {
       await configService.updateGeminiApiKey(apiKey.trim());
       toast.success('API key configurada com sucesso!');
-      setHasApiKey(true);
       onSuccess?.();
       onClose();
     } catch (error: any) {
