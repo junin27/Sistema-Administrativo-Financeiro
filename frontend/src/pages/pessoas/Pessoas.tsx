@@ -4,6 +4,9 @@ import { AxiosError } from 'axios';
 import pessoasService, { Pessoa, PessoaFilter } from '../../services/pessoasService';
 import { SortableTableHeader, SortOrder } from '../../components/table/SortableTableHeader';
 
+// Valor especial para filtro invisível (não aparece para o usuário)
+const HIDDEN_FILTER_VALUE = '__HIDDEN__';
+
 const Pessoas: React.FC = () => {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -11,7 +14,11 @@ const Pessoas: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [filters, setFilters] = useState<PessoaFilter>({});
+  // Inicializa com filtro invisível ativo
+  const [filters, setFilters] = useState<PessoaFilter>({
+    tipo: HIDDEN_FILTER_VALUE,
+    status: HIDDEN_FILTER_VALUE
+  });
   const [showFilters] = useState(true);
   const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
@@ -47,11 +54,24 @@ const Pessoas: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Limpa filtros vazios antes de verificar
+    // Verifica se há filtro invisível ativo
+    const hasHiddenFilter = filters.tipo === HIDDEN_FILTER_VALUE || filters.status === HIDDEN_FILTER_VALUE;
+    
+    // Se há filtro invisível ativo, não carrega dados
+    if (hasHiddenFilter && !filters.documento && !filters.razaosocial && !filters.fantasia) {
+      setPessoas([]);
+      setTotal(0);
+      setTotalPages(1);
+      setCurrentPage(1);
+      return;
+    }
+    
+    // Limpa filtros vazios e remove filtro invisível antes de verificar
     const cleanFilters: PessoaFilter = {};
     if (filters.documento && filters.documento.trim()) cleanFilters.documento = filters.documento.trim();
-    if (filters.tipo !== undefined) cleanFilters.tipo = filters.tipo;
-    if (filters.status !== undefined) cleanFilters.status = filters.status;
+    // Remove filtro invisível - não envia para API
+    if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) cleanFilters.tipo = filters.tipo;
+    if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) cleanFilters.status = filters.status;
     if (filters.razaosocial && filters.razaosocial.trim()) cleanFilters.razaosocial = filters.razaosocial.trim();
     if (filters.fantasia && filters.fantasia.trim()) cleanFilters.fantasia = filters.fantasia.trim();
     if (filters.order_by) cleanFilters.order_by = filters.order_by;
@@ -61,14 +81,12 @@ const Pessoas: React.FC = () => {
     const isTextFilter = !!(filters.documento || filters.razaosocial || filters.fantasia);
     const timeoutId = isTextFilter 
       ? setTimeout(() => {
-          // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
           loadPessoas(1, cleanFilters);
         }, 500) // 500ms de debounce para campos de texto
       : null;
     
     if (!isTextFilter) {
       // Para filtros de select, busca imediatamente
-      // Sempre carrega pessoas, mesmo sem filtros (mostra todas)
       loadPessoas(1, cleanFilters);
     }
     
@@ -78,12 +96,15 @@ const Pessoas: React.FC = () => {
   }, [loadPessoas, filters]);
 
   const handleFilterChange = (field: keyof PessoaFilter, value: string) => {
-    // Se o valor for '__empty', volta para o placeholder (nenhum selecionado)
-    // Se for '', mantém explicitamente o filtro como 'Todos'
     const newFilters: PessoaFilter = { ...filters };
     if (value === '__empty') {
+      // Se for '__empty', volta para o filtro invisível
+      (newFilters as any)[field] = HIDDEN_FILTER_VALUE;
+    } else if (value === '') {
+      // Se for '', remove o filtro (mostra todos)
       delete newFilters[field];
     } else {
+      // Qualquer outro valor, aplica o filtro
       (newFilters as any)[field] = value;
     }
     setFilters(newFilters);
@@ -109,11 +130,15 @@ const Pessoas: React.FC = () => {
   
 
   const clearFilters = () => {
-    setFilters({});
+    // Volta para o estado inicial com filtros invisíveis
+    setFilters({
+      tipo: HIDDEN_FILTER_VALUE,
+      status: HIDDEN_FILTER_VALUE
+    });
     setPessoas([]);
     setTotalPages(1);
     setTotal(0);
-    setLoading(false);
+    setCurrentPage(1);
   };
 
   const handleDelete = async (id: number) => {
@@ -186,7 +211,18 @@ const Pessoas: React.FC = () => {
                 <input
                   type="text"
                   value={filters.documento || ''}
-                  onChange={(e) => handleFilterChange('documento', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: PessoaFilter = { ...filters };
+                    if (e.target.value.trim()) {
+                      newFilters.documento = e.target.value;
+                      // Remove filtros invisíveis quando há texto
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.documento;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="CPF ou CNPJ"
                 />
@@ -197,8 +233,15 @@ const Pessoas: React.FC = () => {
                   Tipo
                 </label>
                 <select
-                  value={filters.tipo ?? '__empty'}
-                  onChange={(e) => handleFilterChange('tipo', e.target.value === '__empty' ? '' : e.target.value)}
+                  value={filters.tipo === HIDDEN_FILTER_VALUE ? '__empty' : (filters.tipo ?? '__empty')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__empty') {
+                      handleFilterChange('tipo', '__empty');
+                    } else {
+                      handleFilterChange('tipo', val);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="__empty" disabled hidden></option>
@@ -215,7 +258,18 @@ const Pessoas: React.FC = () => {
                 <input
                   type="text"
                   value={filters.razaosocial || ''}
-                  onChange={(e) => handleFilterChange('razaosocial', e.target.value)}
+                  onChange={(e) => {
+                    const newFilters: PessoaFilter = { ...filters };
+                    if (e.target.value.trim()) {
+                      newFilters.razaosocial = e.target.value;
+                      // Remove filtros invisíveis quando há texto
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.razaosocial;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nome da empresa"
                 />
@@ -226,8 +280,15 @@ const Pessoas: React.FC = () => {
                   Status
                 </label>
                 <select
-                  value={filters.status ?? '__empty'}
-                  onChange={(e) => handleFilterChange('status', e.target.value === '__empty' ? '' : e.target.value)}
+                  value={filters.status === HIDDEN_FILTER_VALUE ? '__empty' : (filters.status ?? '__empty')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__empty') {
+                      handleFilterChange('status', '__empty');
+                    } else {
+                      handleFilterChange('status', val);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="__empty" disabled hidden></option>
