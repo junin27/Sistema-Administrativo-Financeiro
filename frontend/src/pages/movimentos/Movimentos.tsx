@@ -18,6 +18,12 @@ import { SortableTableHeader, SortOrder } from '../../components/table/SortableT
 // Valor especial para filtro invisível (não aparece para o usuário)
 const HIDDEN_FILTER_VALUE = '__HIDDEN__';
 
+// Tipo estendido que permite HIDDEN_FILTER_VALUE
+type MovimentoContaFilterWithHidden = Omit<MovimentoContaFilter, 'tipo' | 'status'> & {
+  tipo?: 'RECEITA' | 'DESPESA' | typeof HIDDEN_FILTER_VALUE;
+  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE;
+};
+
 const Movimentos: React.FC = () => {
   const [movimentos, setMovimentos] = useState<MovimentoConta[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
@@ -28,9 +34,9 @@ const Movimentos: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   // Inicializa com filtro invisível ativo
-  const [filters, setFilters] = useState<MovimentoContaFilter>({
-    tipo: HIDDEN_FILTER_VALUE as any,
-    status: HIDDEN_FILTER_VALUE as any
+  const [filters, setFilters] = useState<MovimentoContaFilterWithHidden>({
+    tipo: HIDDEN_FILTER_VALUE,
+    status: HIDDEN_FILTER_VALUE
   });
   const [showFilters] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
@@ -92,13 +98,13 @@ const Movimentos: React.FC = () => {
     if (filters.fornecedor_id) cleanFilters.fornecedor_id = filters.fornecedor_id;
     // Remove filtro invisível - não envia para API
     if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
-      if (filters.tipo !== '') {
-        cleanFilters.tipo = filters.tipo as 'RECEITA' | 'DESPESA';
+      if (filters.tipo !== '' && (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA')) {
+        cleanFilters.tipo = filters.tipo;
       }
     }
     if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
-      if (filters.status !== '') {
-        cleanFilters.status = filters.status as 'PENDENTE' | 'PAGO' | 'CANCELADO';
+      if (filters.status !== '' && (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO')) {
+        cleanFilters.status = filters.status;
       }
     }
     if (filters.data_emissao_inicio) cleanFilters.data_emissao_inicio = filters.data_emissao_inicio;
@@ -126,15 +132,6 @@ const Movimentos: React.FC = () => {
     };
   }, [showInactive, loadMovimentos, filters]);
 
-  const handleFilterChange = (field: keyof MovimentoContaFilter, value: string | number) => {
-    const newFilters = { ...filters };
-    if (value === '' || value === null || value === undefined) {
-      delete newFilters[field];
-    } else {
-      (newFilters as any)[field] = value;
-    }
-    setFilters(newFilters);
-  };
 
   const handleSortChange = (field: string, order: SortOrder) => {
     if (order === 'default') {
@@ -158,8 +155,8 @@ const Movimentos: React.FC = () => {
   const clearFilters = () => {
     // Volta para o estado inicial com filtros invisíveis
     setFilters({
-      tipo: HIDDEN_FILTER_VALUE as any,
-      status: HIDDEN_FILTER_VALUE as any
+      tipo: HIDDEN_FILTER_VALUE,
+      status: HIDDEN_FILTER_VALUE
     });
     setMovimentos([]);
     setTotalPages(1);
@@ -337,7 +334,7 @@ const Movimentos: React.FC = () => {
                   type="text"
                   value={filters.numeronotafiscal || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (e.target.value.trim()) {
                       newFilters.numeronotafiscal = e.target.value;
                       // Remove filtros invisíveis quando há texto
@@ -360,7 +357,7 @@ const Movimentos: React.FC = () => {
                 <select
                   value={filters.fornecedor_id || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     const val = e.target.value;
                     if (val && val !== '') {
                       newFilters.fornecedor_id = parseInt(val);
@@ -395,9 +392,9 @@ const Movimentos: React.FC = () => {
                   }
                   onChange={(e) => {
                     const val = e.target.value;
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (val === '__empty') {
-                      newFilters.tipo = HIDDEN_FILTER_VALUE as any;
+                      newFilters.tipo = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
                       delete newFilters.tipo;
                     } else {
@@ -426,9 +423,9 @@ const Movimentos: React.FC = () => {
                   }
                   onChange={(e) => {
                     const val = e.target.value;
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (val === '__empty') {
-                      newFilters.status = HIDDEN_FILTER_VALUE as any;
+                      newFilters.status = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
                       delete newFilters.status;
                     } else {
@@ -455,7 +452,7 @@ const Movimentos: React.FC = () => {
                   type="date"
                   value={filters.data_emissao_inicio || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (e.target.value) {
                       newFilters.data_emissao_inicio = e.target.value;
                       // Remove filtros invisíveis quando há data
@@ -479,7 +476,7 @@ const Movimentos: React.FC = () => {
                   type="date"
                   value={filters.data_emissao_fim || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (e.target.value) {
                       newFilters.data_emissao_fim = e.target.value;
                       // Remove filtros invisíveis quando há data
@@ -502,7 +499,7 @@ const Movimentos: React.FC = () => {
                   type="date"
                   value={filters.data_vencimento_inicio || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (e.target.value) {
                       newFilters.data_vencimento_inicio = e.target.value;
                       // Remove filtros invisíveis quando há data
@@ -525,7 +522,7 @@ const Movimentos: React.FC = () => {
                   type="date"
                   value={filters.data_vencimento_fim || ''}
                   onChange={(e) => {
-                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const newFilters: MovimentoContaFilterWithHidden = { ...filters };
                     if (e.target.value) {
                       newFilters.data_vencimento_fim = e.target.value;
                       // Remove filtros invisíveis quando há data

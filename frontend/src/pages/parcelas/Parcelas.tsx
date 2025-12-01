@@ -27,6 +27,13 @@ import { SortableTableHeader, SortOrder } from '../../components/table/SortableT
 // Valor especial para filtro invisível (não aparece para o usuário)
 const HIDDEN_FILTER_VALUE = '__HIDDEN__';
 
+// Tipo estendido que permite HIDDEN_FILTER_VALUE
+type ParcelaFilterWithHidden = {
+  status: ParcelaStatus | typeof HIDDEN_FILTER_VALUE | '';
+  movimentoId: string;
+  tipo: '' | 'vencidas' | 'a-vencer';
+};
+
 export function Parcelas() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,10 +42,10 @@ export function Parcelas() {
   const [editingParcela, setEditingParcela] = useState<Parcela | undefined>();
 
   // Filtros - inicializa com filtro invisível ativo
-  const [filters, setFilters] = useState({
-    status: HIDDEN_FILTER_VALUE as any,
+  const [filters, setFilters] = useState<ParcelaFilterWithHidden>({
+    status: HIDDEN_FILTER_VALUE,
     movimentoId: '',
-    tipo: '' as '' | 'vencidas' | 'a-vencer',
+    tipo: '',
   });
   const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
@@ -65,7 +72,7 @@ export function Parcelas() {
         // Usa o método list que suporta paginação e filtros no backend
         // Remove filtro invisível - não envia para API
         const statusFilter = filters.status && filters.status !== HIDDEN_FILTER_VALUE 
-          ? filters.status 
+          ? (filters.status as ParcelaStatus)
           : undefined;
         
         const response = await parcelasService.list({
@@ -118,7 +125,7 @@ export function Parcelas() {
   const clearFilters = () => {
     // Volta para o estado inicial com filtro invisível ativo
     setFilters({
-      status: HIDDEN_FILTER_VALUE as any,
+      status: HIDDEN_FILTER_VALUE,
       movimentoId: '',
       tipo: '',
     });
@@ -259,10 +266,10 @@ export function Parcelas() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <button
           onClick={() => {
-            const newFilters = { ...filters, tipo: '' };
+            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: '' };
             // Remove filtro invisível quando clicar em filtro rápido
             if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              delete newFilters.status;
+              newFilters.status = '';
             }
             setFilters(newFilters);
           }}
@@ -280,10 +287,10 @@ export function Parcelas() {
 
         <button
           onClick={() => {
-            const newFilters = { ...filters, tipo: 'vencidas' };
+            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: 'vencidas' };
             // Remove filtro invisível quando clicar em filtro rápido
             if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              delete newFilters.status;
+              newFilters.status = '';
             }
             setFilters(newFilters);
           }}
@@ -301,10 +308,10 @@ export function Parcelas() {
 
         <button
           onClick={() => {
-            const newFilters = { ...filters, tipo: 'a-vencer' };
+            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: 'a-vencer' };
             // Remove filtro invisível quando clicar em filtro rápido
             if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              delete newFilters.status;
+              newFilters.status = '';
             }
             setFilters(newFilters);
           }}
@@ -342,11 +349,11 @@ export function Parcelas() {
                 }
                 onChange={(e) => {
                   const val = e.target.value;
-                  const newFilters = { ...filters };
+                  const newFilters: ParcelaFilterWithHidden = { ...filters };
                   if (val === '__empty') {
-                    newFilters.status = HIDDEN_FILTER_VALUE as any;
+                    newFilters.status = HIDDEN_FILTER_VALUE;
                   } else if (val === '') {
-                    delete newFilters.status;
+                    newFilters.status = '';
                   } else {
                     newFilters.status = val as ParcelaStatus;
                   }
@@ -369,12 +376,12 @@ export function Parcelas() {
                 type="number"
                 value={filters.movimentoId}
                 onChange={(e) => {
-                  const newFilters = { ...filters };
+                  const newFilters: ParcelaFilterWithHidden = { ...filters };
                   if (e.target.value.trim()) {
                     newFilters.movimentoId = e.target.value;
                     // Remove filtro invisível quando há texto
                     if (newFilters.status === HIDDEN_FILTER_VALUE) {
-                      delete newFilters.status;
+                      newFilters.status = '';
                     }
                   } else {
                     newFilters.movimentoId = '';
