@@ -73,7 +73,7 @@ class PDFProcessingService:
             return
             
         try:
-            from ..routers.config_router import get_gemini_api_key
+            from ..config.gemini_config import get_gemini_api_key
             api_key = get_gemini_api_key()
             if not api_key:
                 raise ValueError("API key do Gemini não configurada")

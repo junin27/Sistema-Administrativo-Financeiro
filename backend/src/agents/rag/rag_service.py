@@ -274,7 +274,7 @@ Responda de forma completa e útil:"""
             try:
                 from ...config.settings import settings
                 
-                from ...routers.config_router import get_gemini_api_key
+                from ...config.gemini_config import get_gemini_api_key
                 api_key = get_gemini_api_key() or ""
                 model_name = getattr(settings, "gemini_model", None) or os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
                 

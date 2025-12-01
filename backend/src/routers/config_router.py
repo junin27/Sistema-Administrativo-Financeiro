@@ -5,18 +5,13 @@ Permite atualizar configurações em runtime, como API keys.
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Optional
 import logging
-import os
 
-from ..config.settings import settings
+from ..config.gemini_config import set_gemini_api_key, get_gemini_api_key, has_gemini_api_key
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/config", tags=["Config"])
-
-# Armazenamento em memória para API key do Gemini
-_gemini_api_key_memory: Optional[str] = None
 
 
 class GeminiApiKeyRequest(BaseModel):
@@ -59,13 +54,7 @@ async def update_gemini_api_key(request: GeminiApiKeyRequest):
             )
         
         # Armazenar em memória
-        _gemini_api_key_memory = api_key
-        
-        # Também atualizar a variável de ambiente para esta sessão
-        os.environ["GEMINI_API_KEY"] = api_key
-        
-        # Atualizar o settings (isso não persiste, mas permite uso imediato)
-        settings.gemini_api_key = api_key
+        set_gemini_api_key(api_key)
         
         logger.info("API key do Gemini atualizada com sucesso")
         
@@ -92,40 +81,11 @@ async def get_gemini_api_key_status():
     
     Não retorna a API key por segurança, apenas indica se está configurada.
     """
-    global _gemini_api_key_memory
-    
-    # Verifica em memória primeiro, depois variável de ambiente, depois settings
-    has_key = bool(
-        _gemini_api_key_memory or
-        os.getenv("GEMINI_API_KEY") or
-        settings.gemini_api_key
-    )
+    has_key = has_gemini_api_key()
     
     return GeminiApiKeyResponse(
         success=True,
         message="Status da API key verificado",
         has_api_key=has_key
-    )
-
-
-def get_gemini_api_key() -> Optional[str]:
-    """
-    Função helper para obter a API key do Gemini.
-    
-    Prioridade:
-    1. Memória (atualizada via endpoint)
-    2. Variável de ambiente
-    3. Settings
-    
-    Returns:
-        API key do Gemini ou None se não configurada
-    """
-    global _gemini_api_key_memory
-    
-    return (
-        _gemini_api_key_memory or
-        os.getenv("GEMINI_API_KEY") or
-        os.getenv("GOOGLE_API_KEY") or
-        (settings.gemini_api_key if settings.gemini_api_key else None)
     )
 
