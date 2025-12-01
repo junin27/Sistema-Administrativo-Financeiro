@@ -359,7 +359,19 @@ const Movimentos: React.FC = () => {
                 </label>
                 <select
                   value={filters.fornecedor_id || ''}
-                  onChange={(e) => handleFilterChange('fornecedor_id', parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const newFilters: MovimentoContaFilter = { ...filters };
+                    const val = e.target.value;
+                    if (val && val !== '') {
+                      newFilters.fornecedor_id = parseInt(val);
+                      // Remove filtros invisíveis quando selecionar fornecedor
+                      if (newFilters.tipo === HIDDEN_FILTER_VALUE) delete newFilters.tipo;
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) delete newFilters.status;
+                    } else {
+                      delete newFilters.fornecedor_id;
+                    }
+                    setFilters(newFilters);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Selecione</option>
