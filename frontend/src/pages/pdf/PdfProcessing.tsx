@@ -6,7 +6,6 @@ import { AxiosError } from 'axios';
 import { ProcessamentoPDFResponse } from '../../types/pdf';
 import pdfService from '../../services/pdfService';
 import { GeminiApiKeyModal } from '../../components/GeminiApiKeyModal';
-import configService from '../../services/configService';
 
 interface ProcessedData extends ProcessamentoPDFResponse {}
 
@@ -20,20 +19,9 @@ export function PdfProcessing() {
   const [isChecking, setIsChecking] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
-  // Verificar API key ao montar o componente
+  // Mostrar modal de API key ao montar o componente
   useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        const response = await configService.checkGeminiApiKey();
-        if (!response.has_api_key) {
-          setShowApiKeyModal(true);
-        }
-      } catch (error) {
-        // Se der erro, mostra o modal mesmo assim
-        setShowApiKeyModal(true);
-      }
-    };
-    checkApiKey();
+    setShowApiKeyModal(true);
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
