@@ -107,7 +107,8 @@ const Pessoas: React.FC = () => {
       // Qualquer outro valor, aplica o filtro
       (newFilters as any)[field] = value;
     }
-    setFilters(newFilters);
+    // Força atualização do estado
+    setFilters({ ...newFilters });
   };
 
   const handleSortChange = (field: string, order: SortOrder) => {
@@ -236,11 +237,15 @@ const Pessoas: React.FC = () => {
                   value={filters.tipo === HIDDEN_FILTER_VALUE ? '__empty' : (filters.tipo ?? '__empty')}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const newFilters: PessoaFilter = { ...filters };
                     if (val === '__empty') {
-                      handleFilterChange('tipo', '__empty');
+                      newFilters.tipo = HIDDEN_FILTER_VALUE;
+                    } else if (val === '') {
+                      delete newFilters.tipo;
                     } else {
-                      handleFilterChange('tipo', val);
+                      newFilters.tipo = val;
                     }
+                    setFilters(newFilters);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -283,11 +288,15 @@ const Pessoas: React.FC = () => {
                   value={filters.status === HIDDEN_FILTER_VALUE ? '__empty' : (filters.status ?? '__empty')}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const newFilters: PessoaFilter = { ...filters };
                     if (val === '__empty') {
-                      handleFilterChange('status', '__empty');
+                      newFilters.status = HIDDEN_FILTER_VALUE;
+                    } else if (val === '') {
+                      delete newFilters.status;
                     } else {
-                      handleFilterChange('status', val);
+                      newFilters.status = val;
                     }
+                    setFilters(newFilters);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
