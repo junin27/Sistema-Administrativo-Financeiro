@@ -258,7 +258,14 @@ export function Parcelas() {
       {/* Filtros Rápidos */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <button
-          onClick={() => setFilters({ ...filters, tipo: '' })}
+          onClick={() => {
+            const newFilters = { ...filters, tipo: '' };
+            // Remove filtro invisível quando clicar em filtro rápido
+            if (newFilters.status === HIDDEN_FILTER_VALUE) {
+              delete newFilters.status;
+            }
+            setFilters(newFilters);
+          }}
           className={`p-4 rounded-lg border-2 transition ${
             filters.tipo === ''
               ? 'border-blue-500 bg-blue-50'
@@ -272,7 +279,14 @@ export function Parcelas() {
         </button>
 
         <button
-          onClick={() => setFilters({ ...filters, tipo: 'vencidas' })}
+          onClick={() => {
+            const newFilters = { ...filters, tipo: 'vencidas' };
+            // Remove filtro invisível quando clicar em filtro rápido
+            if (newFilters.status === HIDDEN_FILTER_VALUE) {
+              delete newFilters.status;
+            }
+            setFilters(newFilters);
+          }}
           className={`p-4 rounded-lg border-2 transition ${
             filters.tipo === 'vencidas'
               ? 'border-red-500 bg-red-50'
@@ -286,7 +300,14 @@ export function Parcelas() {
         </button>
 
         <button
-          onClick={() => setFilters({ ...filters, tipo: 'a-vencer' })}
+          onClick={() => {
+            const newFilters = { ...filters, tipo: 'a-vencer' };
+            // Remove filtro invisível quando clicar em filtro rápido
+            if (newFilters.status === HIDDEN_FILTER_VALUE) {
+              delete newFilters.status;
+            }
+            setFilters(newFilters);
+          }}
           className={`p-4 rounded-lg border-2 transition ${
             filters.tipo === 'a-vencer'
               ? 'border-yellow-500 bg-yellow-50'
