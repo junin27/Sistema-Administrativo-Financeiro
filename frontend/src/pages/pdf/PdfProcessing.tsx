@@ -6,7 +6,6 @@ import { AxiosError } from 'axios';
 import { ProcessamentoPDFResponse } from '../../types/pdf';
 import pdfService from '../../services/pdfService';
 import { GeminiApiKeyModal } from '../../components/GeminiApiKeyModal';
-import configService from '../../services/configService';
 
 interface ProcessedData extends ProcessamentoPDFResponse {}
 

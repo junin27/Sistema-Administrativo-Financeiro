@@ -12,7 +12,6 @@ interface GeminiApiKeyModalProps {
 export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyModalProps) {
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     if (isOpen) {

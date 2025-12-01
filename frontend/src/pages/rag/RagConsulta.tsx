@@ -3,7 +3,6 @@ import { Search, Brain, Loader2, Info } from 'lucide-react';
 import ragService, { RagResponse, RagSource } from '@/services/ragService';
 import toast from 'react-hot-toast';
 import { GeminiApiKeyModal } from '../../components/GeminiApiKeyModal';
-import configService from '../../services/configService';
 
 type Strategy = 'simples' | 'embeddings';
 
