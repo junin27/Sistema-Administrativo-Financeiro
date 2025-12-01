@@ -20,20 +20,9 @@ export function PdfProcessing() {
   const [isChecking, setIsChecking] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
-  // Verificar API key ao montar o componente
+  // Mostrar modal de API key ao montar o componente
   useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        const response = await configService.checkGeminiApiKey();
-        if (!response.has_api_key) {
-          setShowApiKeyModal(true);
-        }
-      } catch (error) {
-        // Se der erro, mostra o modal mesmo assim
-        setShowApiKeyModal(true);
-      }
-    };
-    checkApiKey();
+    setShowApiKeyModal(true);
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {

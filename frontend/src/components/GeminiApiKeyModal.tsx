@@ -12,31 +12,14 @@ interface GeminiApiKeyModalProps {
 export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyModalProps) {
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      checkApiKey();
+      // Limpa o campo quando o modal abre
+      setApiKey('');
     }
   }, [isOpen]);
-
-  const checkApiKey = async () => {
-    setIsChecking(true);
-    try {
-      const response = await configService.checkGeminiApiKey();
-      if (response.has_api_key) {
-        // Se já tem API key, fecha o modal após um breve delay
-        setTimeout(() => {
-          onClose();
-          onSuccess?.();
-        }, 500);
-      }
-    } catch (error) {
-      console.error('Erro ao verificar API key:', error);
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,14 +76,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
 
         {/* Content */}
         <div className="p-6">
-          {isChecking ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-              <span className="ml-2 text-gray-600">Verificando configuração...</span>
-            </div>
-          ) : (
-            <>
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-blue-800">
@@ -140,6 +116,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     Sua API key será armazenada apenas em memória e não será salva permanentemente.
+                    Se você já tem uma API key configurada, insira uma nova para substituí-la.
                   </p>
                 </div>
 
@@ -165,14 +142,12 @@ export function GeminiApiKeyModal({ isOpen, onClose, onSuccess }: GeminiApiKeyMo
                     ) : (
                       <>
                         <CheckCircle className="w-4 h-4" />
-                        Configurar
+                        {apiKey.trim() ? 'Atualizar API Key' : 'Configurar'}
                       </>
                     )}
                   </button>
                 </div>
               </form>
-            </>
-          )}
         </div>
       </div>
     </div>

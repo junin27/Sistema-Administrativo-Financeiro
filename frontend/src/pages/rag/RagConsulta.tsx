@@ -14,20 +14,9 @@ export const RagConsulta: React.FC = () => {
   const [result, setResult] = useState<RagResponse | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
-  // Verificar API key ao montar o componente
+  // Mostrar modal de API key ao montar o componente
   useEffect(() => {
-    const checkApiKey = async () => {
-      try {
-        const response = await configService.checkGeminiApiKey();
-        if (!response.has_api_key) {
-          setShowApiKeyModal(true);
-        }
-      } catch (error) {
-        // Se der erro, mostra o modal mesmo assim
-        setShowApiKeyModal(true);
-      }
-    };
-    checkApiKey();
+    setShowApiKeyModal(true);
   }, []);
 
   const handleAsk = async () => {
