@@ -28,11 +28,42 @@ const Pessoas: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('[DEBUG] Filtros enviados para API:', { page, size: pageSize, filters: currentFilters });
+
+      // Limpar filtros antes de enviar para API
+      const filtersToSend: PessoaFilter = {};
+      
+      // Documento
+      if (currentFilters.documento && currentFilters.documento.trim()) {
+        filtersToSend.documento = currentFilters.documento.trim();
+      }
+      
+      // Tipo
+      if (currentFilters.tipo !== undefined && currentFilters.tipo !== HIDDEN_FILTER_VALUE && currentFilters.tipo !== '') {
+        filtersToSend.tipo = currentFilters.tipo;
+      }
+      
+      // Status
+      if (currentFilters.status !== undefined && currentFilters.status !== HIDDEN_FILTER_VALUE && currentFilters.status !== '') {
+        filtersToSend.status = currentFilters.status;
+      }
+      
+      // Razão Social e Fantasia
+      if (currentFilters.razaosocial && currentFilters.razaosocial.trim()) {
+        filtersToSend.razaosocial = currentFilters.razaosocial.trim();
+      }
+      if (currentFilters.fantasia && currentFilters.fantasia.trim()) {
+        filtersToSend.fantasia = currentFilters.fantasia.trim();
+      }
+      
+      // Ordenação
+      if (currentFilters.order_by) filtersToSend.order_by = currentFilters.order_by;
+      if (currentFilters.order_dir) filtersToSend.order_dir = currentFilters.order_dir;
+
+      console.log('[DEBUG] Filtros enviados para API:', { page, size: pageSize, filters: filtersToSend });
       const response = await pessoasService.getAll({
         page,
         size: pageSize,
-        filters: currentFilters
+        filters: filtersToSend
       });
       console.log('[DEBUG] Resposta da API:', response);
       // Garantir que items seja sempre um array

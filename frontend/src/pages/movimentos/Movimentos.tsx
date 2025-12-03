@@ -71,25 +71,50 @@ const Movimentos: React.FC = () => {
   const loadMovimentos = useCallback(async (page: number = 1, currentFilters: MovimentoContaFilter = {}, includeInactive: boolean = false) => {
     try {
       setLoading(true);
-      const [movimentosResponse, _resumoResponse, pessoasResponse] = await Promise.all([
+      setError(null);
+      
+      // Carregar pessoas primeiro (não depende de filtros)
+      const pessoasResponse = await pessoasService.getAll({ page: 1, size: 100 });
+      setPessoas(pessoasResponse.items);
+      
+      // Carregar movimentos e resumo em paralelo
+      const [movimentosResponse, _resumoResponse] = await Promise.allSettled([
         movimentosService.getAll({
           page,
           size: pageSize,
           filters: { ...currentFilters, include_deleted: includeInactive }
         }),
-        movimentosService.getResumo(),
-        pessoasService.getAll({ page: 1, size: 100 })
+        movimentosService.getResumo()
       ]);
       
-      setMovimentos(movimentosResponse.items);
-      setTotalPages(movimentosResponse.pages);
-      setTotal(movimentosResponse.total);
-      setCurrentPage(page);
-      // setResumo(resumoResponse); // TODO: Implementar exibição de resumo
-      setPessoas(pessoasResponse.items);
+      // Processar resposta de movimentos
+      if (movimentosResponse.status === 'fulfilled') {
+        setMovimentos(movimentosResponse.value.items);
+        setTotalPages(movimentosResponse.value.pages);
+        setTotal(movimentosResponse.value.total);
+        setCurrentPage(page);
+      } else {
+        const error = movimentosResponse.reason as AxiosError<{ detail: string }>;
+        const errorMessage = error.response?.data?.detail || error.message || 'Erro ao carregar movimentos';
+        setError(errorMessage);
+        setMovimentos([]);
+        setTotalPages(1);
+        setTotal(0);
+        setCurrentPage(1);
+      }
+      
+      // Resumo é opcional, não quebra se falhar
+      // if (_resumoResponse.status === 'fulfilled') {
+      //   setResumo(_resumoResponse.value);
+      // }
     } catch (err) {
       const error = err as AxiosError<{ detail: string }>;
-      setError(error.response?.data?.detail || 'Erro ao carregar movimentos');
+      const errorMessage = error.response?.data?.detail || error.message || 'Erro ao carregar movimentos';
+      setError(errorMessage);
+      setMovimentos([]);
+      setTotalPages(1);
+      setTotal(0);
+      setCurrentPage(1);
     } finally {
       setLoading(false);
     }

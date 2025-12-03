@@ -100,8 +100,9 @@ class MovimentosService {
     // Note: Backend filter schema has data_inicio/data_fim, not specific for emissao/vencimento. 
     // ddl_schemas.py says data_inicio/data_fim. I'll map data_emissao_inicio to data_inicio for now.
 
-    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
-    const response = await api.get(`${path}?${queryParams.toString()}`);
+    const path = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+    const url = queryParams.toString() ? `${path}?${queryParams.toString()}` : path;
+    const response = await api.get(url);
     return response.data;
   }
 
@@ -126,8 +127,14 @@ class MovimentosService {
   }
 
   async getResumo(): Promise<MovimentoResumo[]> {
-    const response = await api.get(`${this.baseUrl}/resumo`);
-    return response.data;
+    try {
+      const response = await api.get(`${this.baseUrl}/resumo`);
+      return response.data;
+    } catch (error) {
+      // Se o endpoint de resumo falhar, retorna array vazio ao invés de quebrar
+      console.warn('[MovimentosService] Erro ao buscar resumo:', error);
+      return [];
+    }
   }
 
   async getReceitas(params?: {
