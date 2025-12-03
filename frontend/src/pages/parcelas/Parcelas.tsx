@@ -94,7 +94,6 @@ export function Parcelas() {
     loadParcelas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filters.movimentoId, filters.status, sortConfig]);
-  };
 
   const handleSortChange = (field: string, order: SortOrder) => {
     // Sempre manter o sortConfig para que o ícone correto seja exibido
