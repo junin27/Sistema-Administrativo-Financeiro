@@ -158,9 +158,9 @@ const MovimentoDetalhes: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PAGO':
+      case 'FECHADO':
         return 'bg-green-100 text-green-800';
-      case 'PENDENTE':
+      case 'ABERTO':
         return 'bg-yellow-100 text-yellow-800';
       case 'CANCELADO':
         return 'bg-red-100 text-red-800';
@@ -171,9 +171,9 @@ const MovimentoDetalhes: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'PAGO':
+      case 'FECHADO':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'PENDENTE':
+      case 'ABERTO':
         return <Clock className="w-5 h-5 text-yellow-500" />;
       case 'CANCELADO':
         return <XCircle className="w-5 h-5 text-red-500" />;
@@ -223,14 +223,14 @@ const MovimentoDetalhes: React.FC = () => {
               Movimento #{movimento.numeronotafiscal}
             </h1>
             <p className="text-gray-600 mt-1">
-              {movimento.tipo === 'RECEITA' ? 'Receita' : 'Despesa'} • 
+              {movimento.tipo === 'RECEBER' ? 'Receber (Receita)' : 'Pagar (Despesa)'} • 
               Criado em {formatDateTime(movimento.created_at || '')}
             </p>
           </div>
         </div>
         
         <div className="flex space-x-2">
-          {movimento.status === 'PENDENTE' && (
+          {movimento.status === 'ABERTO' && (
             <>
               <button
                 onClick={handleMarcarComoPago}
@@ -283,17 +283,17 @@ const MovimentoDetalhes: React.FC = () => {
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-500">Status</p>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(movimento.status)}`}>
-                    {movimento.status === 'PAGO' ? 'Pago' : 
-                     movimento.status === 'PENDENTE' ? 'Pendente' : 'Cancelado'}
+                    {movimento.status === 'FECHADO' ? 'Fechado' : 
+                     movimento.status === 'ABERTO' ? 'Aberto' : 'Cancelado'}
                   </span>
                 </div>
               </div>
               
               <div className="flex items-center">
-                <DollarSign className={`w-5 h-5 ${movimento.tipo === 'RECEITA' ? 'text-green-500' : 'text-red-500'}`} />
+                <DollarSign className={`w-5 h-5 ${movimento.tipo === 'RECEBER' ? 'text-green-500' : 'text-red-500'}`} />
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-500">Valor</p>
-                  <p className={`text-lg font-bold ${movimento.tipo === 'RECEITA' ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-lg font-bold ${movimento.tipo === 'RECEBER' ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(movimento.valortotal)}
                   </p>
                 </div>
@@ -309,9 +309,9 @@ const MovimentoDetalhes: React.FC = () => {
               
               <div className="flex items-center">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  movimento.tipo === 'RECEITA' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  movimento.tipo === 'RECEBER' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                 }`}>
-                  {movimento.tipo === 'RECEITA' ? 'Receita' : 'Despesa'}
+                  {movimento.tipo === 'RECEBER' ? 'Receber (Receita)' : 'Pagar (Despesa)'}
                 </span>
               </div>
             </div>

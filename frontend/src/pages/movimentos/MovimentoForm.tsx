@@ -13,13 +13,13 @@ const MovimentoForm: React.FC = () => {
     numeronotafiscal: '',
     Pessoas_idFornecedorCliente: 0,
     Pessoas_idfaturado: 0,
-    tipo: 'DESPESA',
+    tipo: 'PAGAR',
     valortotal: 0,
     dataemissao: '',
     datavencimento: '',
     descricao: '',
     observacoes: '',
-    status: 'PENDENTE'
+    status: 'ABERTO'
   });
 
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
@@ -266,8 +266,8 @@ const MovimentoForm: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="RECEITA">Receita</option>
-                  <option value="DESPESA">Despesa</option>
+                  <option value="RECEBER">Receber (Receita)</option>
+                  <option value="PAGAR">Pagar (Despesa)</option>
                 </select>
               </div>
 
@@ -328,8 +328,8 @@ const MovimentoForm: React.FC = () => {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="PENDENTE">Pendente</option>
-                  <option value="PAGO">Pago</option>
+                  <option value="ABERTO">Aberto</option>
+                  <option value="FECHADO">Fechado</option>
                   <option value="CANCELADO">Cancelado</option>
                 </select>
               </div>

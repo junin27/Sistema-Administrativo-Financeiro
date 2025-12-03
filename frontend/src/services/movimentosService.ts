@@ -7,12 +7,12 @@ export interface MovimentoConta {
   numeronotafiscal: string;
   Pessoas_idFornecedorCliente: number;
   Pessoas_idfaturado: number;
-  tipo: 'RECEITA' | 'DESPESA';
+  tipo: 'PAGAR' | 'RECEBER';
   valortotal: number;
   dataemissao: string;
   datavencimento?: string; // Backend schema missing this? Let's check ddl_schemas.py again.
   datapagamento?: string;
-  status: 'PENDENTE' | 'PAGO' | 'CANCELADO';
+  status: 'ABERTO' | 'FECHADO' | 'CANCELADO';
   observacoes?: string;
   descricao?: string;
   created_at?: string;
@@ -26,12 +26,12 @@ export interface MovimentoContaCreate {
   numeronotafiscal: string;
   Pessoas_idFornecedorCliente: number;
   Pessoas_idfaturado: number;
-  tipo: 'RECEITA' | 'DESPESA';
+  tipo: 'PAGAR' | 'RECEBER';
   valortotal: number;
   dataemissao: string;
   datavencimento?: string;
   datapagamento?: string;
-  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO';
+  status?: 'ABERTO' | 'FECHADO' | 'CANCELADO';
   observacoes?: string;
   descricao?: string;
 }
@@ -40,12 +40,12 @@ export interface MovimentoContaUpdate {
   numeronotafiscal?: string;
   Pessoas_idFornecedorCliente?: number;
   Pessoas_idfaturado?: number;
-  tipo?: 'RECEITA' | 'DESPESA';
+  tipo?: 'PAGAR' | 'RECEBER';
   valortotal?: number;
   dataemissao?: string;
   datavencimento?: string;
   datapagamento?: string;
-  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO';
+  status?: 'ABERTO' | 'FECHADO' | 'CANCELADO';
   observacoes?: string;
 }
 
@@ -53,8 +53,8 @@ export interface MovimentoContaFilter {
   numeronotafiscal?: string;
   fornecedor_id?: number;
   faturado_id?: number;
-  tipo?: 'RECEITA' | 'DESPESA';
-  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO';
+  tipo?: 'PAGAR' | 'RECEBER';
+  status?: 'ABERTO' | 'FECHADO' | 'CANCELADO';
   data_emissao_inicio?: string;
   data_emissao_fim?: string;
   data_vencimento_inicio?: string;
@@ -73,7 +73,7 @@ export interface MovimentosListResponse {
 }
 
 export interface MovimentoResumo {
-  tipo: 'RECEITA' | 'DESPESA';
+  tipo: 'PAGAR' | 'RECEBER';
   total_valor: number;
   quantidade: number;
 }

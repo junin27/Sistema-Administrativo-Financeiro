@@ -20,8 +20,8 @@ const HIDDEN_FILTER_VALUE = '__HIDDEN__';
 
 // Tipo estendido que permite HIDDEN_FILTER_VALUE e string vazia (para "TODOS")
 type MovimentoContaFilterWithHidden = Omit<MovimentoContaFilter, 'tipo' | 'status'> & {
-  tipo?: 'RECEITA' | 'DESPESA' | typeof HIDDEN_FILTER_VALUE | '';
-  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE | '';
+  tipo?: 'PAGAR' | 'RECEBER' | typeof HIDDEN_FILTER_VALUE | '';
+  status?: 'ABERTO' | 'FECHADO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE | '';
 };
 
 // Função helper para converter MovimentoContaFilterWithHidden para MovimentoContaFilter
@@ -30,12 +30,12 @@ const convertToMovimentoContaFilter = (filters: MovimentoContaFilterWithHidden):
   if (filters.numeronotafiscal && filters.numeronotafiscal.trim()) cleanFilters.numeronotafiscal = filters.numeronotafiscal.trim();
   if (filters.fornecedor_id) cleanFilters.fornecedor_id = filters.fornecedor_id;
   if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
-    if (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA') {
+    if (filters.tipo === 'PAGAR' || filters.tipo === 'RECEBER') {
       cleanFilters.tipo = filters.tipo;
     }
   }
   if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
-    if (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO') {
+    if (filters.status === 'ABERTO' || filters.status === 'FECHADO' || filters.status === 'CANCELADO') {
       cleanFilters.status = filters.status;
     }
   }
@@ -156,14 +156,14 @@ const Movimentos: React.FC = () => {
     // Tipo: se não for HIDDEN e não for vazio, inclui no filtro
     // Se for vazio (''), significa "Todos" - não inclui no filtro (busca todos)
     if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
-      if (filters.tipo !== '' && (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA')) {
+      if (filters.tipo !== '' && (filters.tipo === 'PAGAR' || filters.tipo === 'RECEBER')) {
         cleanFilters.tipo = filters.tipo;
       }
     }
     
     // Status: mesma lógica do tipo
     if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
-      if (filters.status !== '' && (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO')) {
+      if (filters.status !== '' && (filters.status === 'ABERTO' || filters.status === 'FECHADO' || filters.status === 'CANCELADO')) {
         cleanFilters.status = filters.status;
       }
     }
@@ -273,11 +273,11 @@ const Movimentos: React.FC = () => {
 
   const calcularTotais = () => {
     const receitas = movimentos
-      .filter(m => m.tipo === 'RECEITA')
+      .filter(m => m.tipo === 'RECEBER')
       .reduce((sum, m) => sum + m.valortotal, 0);
     
     const despesas = movimentos
-      .filter(m => m.tipo === 'DESPESA')
+      .filter(m => m.tipo === 'PAGAR')
       .reduce((sum, m) => sum + m.valortotal, 0);
     
     return { receitas, despesas, saldo: receitas - despesas };
@@ -460,7 +460,7 @@ const Movimentos: React.FC = () => {
                       // "TODOS" selecionado - define como string vazia para buscar todos
                       newFilters.tipo = '';
                     } else {
-                      newFilters.tipo = val as 'RECEITA' | 'DESPESA';
+                      newFilters.tipo = val as 'PAGAR' | 'RECEBER';
                     }
                     setFilters(newFilters);
                   }}
@@ -468,8 +468,8 @@ const Movimentos: React.FC = () => {
                 >
                   <option value="__empty" disabled hidden></option>
                   <option value="">TODOS</option>
-                  <option value="RECEITA">Receita</option>
-                  <option value="DESPESA">Despesa</option>
+                  <option value="RECEBER">Receber (Receita)</option>
+                  <option value="PAGAR">Pagar (Despesa)</option>
                 </select>
               </div>
               
@@ -492,7 +492,7 @@ const Movimentos: React.FC = () => {
                       // "TODOS" selecionado - define como string vazia para buscar todos
                       newFilters.status = '';
                     } else {
-                      newFilters.status = val as 'PENDENTE' | 'PAGO' | 'CANCELADO';
+                      newFilters.status = val as 'ABERTO' | 'FECHADO' | 'CANCELADO';
                     }
                     setFilters(newFilters);
                   }}
@@ -500,8 +500,8 @@ const Movimentos: React.FC = () => {
                 >
                   <option value="__empty" disabled hidden></option>
                   <option value="">TODOS</option>
-                  <option value="PENDENTE">Pendente</option>
-                  <option value="PAGO">Pago</option>
+                  <option value="ABERTO">Aberto</option>
+                  <option value="FECHADO">Fechado</option>
                   <option value="CANCELADO">Cancelado</option>
                 </select>
               </div>
