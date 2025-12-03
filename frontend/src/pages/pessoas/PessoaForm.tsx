@@ -56,84 +56,17 @@ const PessoaForm: React.FC = () => {
     const cleanDoc = documento.replace(/\D/g, '');
     
     if (cleanDoc.length === 11) {
-      // Validação CPF
-      // Verifica se todos os dígitos são iguais
-      if (/^(\d)\1{10}$/.test(cleanDoc)) {
-        setDocumentError('CPF inválido');
-        return false;
-      }
-      
-      // Validação do primeiro dígito verificador
-      let sum = 0;
-      for (let i = 0; i < 9; i++) {
-        sum += parseInt(cleanDoc.charAt(i)) * (10 - i);
-      }
-      let remainder = sum % 11;
-      let firstDigit = remainder < 2 ? 0 : 11 - remainder;
-      
-      if (firstDigit !== parseInt(cleanDoc.charAt(9))) {
-        setDocumentError('CPF inválido');
-        return false;
-      }
-      
-      // Validação do segundo dígito verificador
-      sum = 0;
-      for (let i = 0; i < 10; i++) {
-        sum += parseInt(cleanDoc.charAt(i)) * (11 - i);
-      }
-      remainder = sum % 11;
-      let secondDigit = remainder < 2 ? 0 : 11 - remainder;
-      
-      if (secondDigit !== parseInt(cleanDoc.charAt(10))) {
-        setDocumentError('CPF inválido');
-        return false;
-      }
+      // CPF - validação apenas do tamanho (11 dígitos)
+      setDocumentError(null);
+      return true;
     } else if (cleanDoc.length === 14) {
-      // Validação CNPJ
-      if (/^(\d)\1{13}$/.test(cleanDoc)) {
-        setDocumentError('CNPJ inválido');
-        return false;
-      }
-      
-      let length = cleanDoc.length - 2;
-      let numbers = cleanDoc.substring(0, length);
-      const digits = cleanDoc.substring(length);
-      let sum = 0;
-      let pos = length - 7;
-      
-      for (let i = length; i >= 1; i--) {
-        sum += parseInt(numbers.charAt(length - i)) * pos--;
-        if (pos < 2) pos = 9;
-      }
-      
-      let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-      if (result !== parseInt(digits.charAt(0))) {
-        setDocumentError('CNPJ inválido');
-        return false;
-      }
-      
-      length = length + 1;
-      numbers = cleanDoc.substring(0, length);
-      sum = 0;
-      pos = length - 7;
-      
-      for (let i = length; i >= 1; i--) {
-        sum += parseInt(numbers.charAt(length - i)) * pos--;
-        if (pos < 2) pos = 9;
-      }
-      
-      result = sum % 11 < 2 ? 0 : 11 - sum % 11;
-      if (result !== parseInt(digits.charAt(1))) {
-        setDocumentError('CNPJ inválido');
-        return false;
-      }
+      // CNPJ - validação apenas do tamanho (14 dígitos)
+      setDocumentError(null);
+      return true;
     } else {
       setDocumentError('Documento deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ)');
       return false;
     }
-    
-    setDocumentError(null);
-    return true;
   };
 
   const formatDocument = (value: string): string => {

@@ -6,17 +6,13 @@
 import { useState, useEffect } from 'react';
 import {
   Plus,
-  Filter,
   Calendar,
   AlertCircle,
   CheckCircle,
   Clock,
   XCircle,
-  TrendingUp,
   Edit,
   Trash2,
-  Search,
-  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import parcelasService from '../../services/parcelasService';
@@ -31,7 +27,6 @@ const HIDDEN_FILTER_VALUE = '__HIDDEN__';
 type ParcelaFilterWithHidden = {
   status: ParcelaStatus | typeof HIDDEN_FILTER_VALUE | '';
   movimentoId: string;
-  tipo: '' | 'vencidas' | 'a-vencer';
 };
 
 export function Parcelas() {
@@ -45,7 +40,6 @@ export function Parcelas() {
   const [filters, setFilters] = useState<ParcelaFilterWithHidden>({
     status: HIDDEN_FILTER_VALUE,
     movimentoId: '',
-    tipo: '',
   });
   const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
@@ -58,38 +52,24 @@ export function Parcelas() {
   const loadParcelas = async () => {
     setLoading(true);
     try {
-      let data: Parcela[];
-      let totalItems = 0;
-
-      // Aplicar filtros especiais
-      if (filters.tipo === 'vencidas') {
-        data = await parcelasService.getVencidas();
-        totalItems = data.length;
-      } else if (filters.tipo === 'a-vencer') {
-        data = await parcelasService.getAVencer();
-        totalItems = data.length;
-      } else {
-        // Usa o método list que suporta paginação e filtros no backend
-        // Remove filtro invisível - não envia para API
-        const statusFilter = filters.status && filters.status !== HIDDEN_FILTER_VALUE 
-          ? (filters.status as ParcelaStatus)
-          : undefined;
-        
-        const response = await parcelasService.list({
-          page,
-          per_page: limit,
-          status: statusFilter,
-          movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined,
-          // Só enviar order_by e order_dir se não for 'default'
-          order_by: sortConfig && sortConfig.order !== 'default' ? sortConfig.field : undefined,
-          order_dir: sortConfig && sortConfig.order !== 'default' ? (sortConfig.order === 'asc' ? 'asc' : 'desc') : undefined
-        });
-        data = response.items;
-        totalItems = response.total; // Nota: pode não ser o total real devido a limitações do backend
-      }
-
-      setParcelas(data);
-      setTotal(totalItems);
+      // Usa o método list que suporta paginação e filtros no backend
+      // Remove filtro invisível - não envia para API
+      const statusFilter = filters.status && filters.status !== HIDDEN_FILTER_VALUE 
+        ? (filters.status as ParcelaStatus)
+        : undefined;
+      
+      const response = await parcelasService.list({
+        page,
+        per_page: limit,
+        status: statusFilter,
+        movimento_id: filters.movimentoId ? parseInt(filters.movimentoId) : undefined,
+        // Só enviar order_by e order_dir se não for 'default'
+        order_by: sortConfig && sortConfig.order !== 'default' ? sortConfig.field : undefined,
+        order_dir: sortConfig && sortConfig.order !== 'default' ? (sortConfig.order === 'asc' ? 'asc' : 'desc') : undefined
+      });
+      
+      setParcelas(response.items);
+      setTotal(response.total);
     } catch {
       toast.error('Erro ao carregar parcelas');
     } finally {
@@ -100,7 +80,7 @@ export function Parcelas() {
   useEffect(() => {
     // Verifica se há filtro invisível ativo E não há outros filtros
     const hasHiddenFilter = filters.status === HIDDEN_FILTER_VALUE;
-    const hasOtherFilters = !!(filters.tipo || filters.movimentoId);
+    const hasOtherFilters = !!filters.movimentoId;
     
     // Só bloqueia se o filtro estiver invisível E não houver outros filtros
     if (hasHiddenFilter && !hasOtherFilters) {
@@ -113,24 +93,7 @@ export function Parcelas() {
     // Carrega parcelas se houver algum filtro ativo
     loadParcelas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.tipo, filters.movimentoId, filters.status, sortConfig]);
-
-  // Aplicar filtros
-  const applyFilters = () => {
-    setPage(1);
-    loadParcelas();
-  };
-
-  // Limpar filtros
-  const clearFilters = () => {
-    // Volta para o estado inicial com filtro invisível ativo
-    setFilters({
-      status: HIDDEN_FILTER_VALUE,
-      movimentoId: '',
-      tipo: '',
-    });
-    setPage(1);
-    setSortConfig(undefined);
+  }, [page, filters.movimentoId, filters.status, sortConfig]);
   };
 
   const handleSortChange = (field: string, order: SortOrder) => {
@@ -262,150 +225,72 @@ export function Parcelas() {
         </div>
       )}
 
-      {/* Filtros Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <button
-          onClick={() => {
-            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: '' };
-            // Remove filtro invisível quando clicar em filtro rápido
-            if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              newFilters.status = '';
-            }
-            setFilters(newFilters);
-          }}
-          className={`p-4 rounded-lg border-2 transition ${
-            filters.tipo === ''
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-200 hover:border-blue-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Todas</span>
-            <TrendingUp className="h-5 w-5 text-blue-600" />
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: 'vencidas' };
-            // Remove filtro invisível quando clicar em filtro rápido
-            if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              newFilters.status = '';
-            }
-            setFilters(newFilters);
-          }}
-          className={`p-4 rounded-lg border-2 transition ${
-            filters.tipo === 'vencidas'
-              ? 'border-red-500 bg-red-50'
-              : 'border-gray-200 hover:border-red-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Vencidas</span>
-            <AlertCircle className="h-5 w-5 text-red-600" />
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            const newFilters: ParcelaFilterWithHidden = { ...filters, tipo: 'a-vencer' };
-            // Remove filtro invisível quando clicar em filtro rápido
-            if (newFilters.status === HIDDEN_FILTER_VALUE) {
-              newFilters.status = '';
-            }
-            setFilters(newFilters);
-          }}
-          className={`p-4 rounded-lg border-2 transition ${
-            filters.tipo === 'a-vencer'
-              ? 'border-yellow-500 bg-yellow-50'
-              : 'border-gray-200 hover:border-yellow-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-medium">A Vencer</span>
-            <Clock className="h-5 w-5 text-yellow-600" />
-          </div>
-        </button>
-
-        <div className="p-4 rounded-lg border-2 border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Filtros</span>
-            <Filter className="h-5 w-5 text-gray-600" />
-          </div>
+      {/* Filtros */}
+      <div className="bg-white shadow-md rounded-lg mb-6">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <span className="text-gray-700">Filtros</span>
         </div>
-      </div>
-
-      {/* Filtros Avançados */}
-      {showFilters && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={
-                  filters.status === HIDDEN_FILTER_VALUE 
-                    ? '__empty' 
-                    : (filters.status === undefined || filters.status === '' ? '' : filters.status)
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const newFilters: ParcelaFilterWithHidden = { ...filters };
-                  if (val === '__empty') {
-                    newFilters.status = HIDDEN_FILTER_VALUE;
-                  } else if (val === '') {
-                    newFilters.status = '';
-                  } else {
-                    newFilters.status = val as ParcelaStatus;
+        
+        {showFilters && (
+          <div className="px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={
+                    filters.status === HIDDEN_FILTER_VALUE 
+                      ? '__empty' 
+                      : (filters.status === undefined || filters.status === '' ? '' : filters.status)
                   }
-                  setFilters(newFilters);
-                }}
-                className="input-field"
-              >
-                <option value="__empty" disabled hidden></option>
-                <option value="">Todos</option>
-                <option value="PENDENTE">Pendente</option>
-                <option value="PAGA">Paga</option>
-                <option value="VENCIDA">Vencida</option>
-                <option value="CANCELADA">Cancelada</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ID Movimento</label>
-              <input
-                type="number"
-                value={filters.movimentoId}
-                onChange={(e) => {
-                  const newFilters: ParcelaFilterWithHidden = { ...filters };
-                  if (e.target.value.trim()) {
-                    newFilters.movimentoId = e.target.value;
-                    // Remove filtro invisível quando há texto
-                    if (newFilters.status === HIDDEN_FILTER_VALUE) {
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const newFilters: ParcelaFilterWithHidden = { ...filters };
+                    if (val === '__empty') {
+                      newFilters.status = HIDDEN_FILTER_VALUE;
+                    } else if (val === '') {
                       newFilters.status = '';
+                    } else {
+                      newFilters.status = val as ParcelaStatus;
                     }
-                  } else {
-                    newFilters.movimentoId = '';
-                  }
-                  setFilters(newFilters);
-                }}
-                className="input-field"
-                placeholder="Filtrar por movimento"
-              />
+                    setFilters(newFilters);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="__empty" disabled hidden></option>
+                  <option value="">Todos</option>
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="PAGA">Paga</option>
+                  <option value="VENCIDA">Vencida</option>
+                  <option value="CANCELADA">Cancelada</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ID Movimento</label>
+                <input
+                  type="number"
+                  value={filters.movimentoId}
+                  onChange={(e) => {
+                    const newFilters: ParcelaFilterWithHidden = { ...filters };
+                    if (e.target.value.trim()) {
+                      newFilters.movimentoId = e.target.value;
+                      // Remove filtro invisível quando há texto
+                      if (newFilters.status === HIDDEN_FILTER_VALUE) {
+                        newFilters.status = '';
+                      }
+                    } else {
+                      newFilters.movimentoId = '';
+                    }
+                    setFilters(newFilters);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Filtrar por movimento"
+                />
+              </div>
             </div>
           </div>
-
-          <div className="flex justify-end gap-4 mt-4">
-            <button onClick={clearFilters} className="btn-outline">
-              <X className="h-4 w-4 mr-2" />
-              Limpar
-            </button>
-            <button onClick={applyFilters} className="btn-primary">
-              <Search className="h-4 w-4 mr-2" />
-              Aplicar
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Loading */}
       {loading && (
