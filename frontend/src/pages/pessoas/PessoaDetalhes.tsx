@@ -117,9 +117,9 @@ const PessoaDetalhes: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PAGO':
+      case 'FECHADO':
         return 'bg-green-100 text-green-800';
-      case 'PENDENTE':
+      case 'ABERTO':
         return 'bg-yellow-100 text-yellow-800';
       case 'CANCELADO':
         return 'bg-red-100 text-red-800';
@@ -129,14 +129,14 @@ const PessoaDetalhes: React.FC = () => {
   };
 
   const getTipoColor = (tipo: string) => {
-    return tipo === 'RECEITA' 
+    return tipo === 'RECEBER' 
       ? 'bg-green-100 text-green-800' 
       : 'bg-red-100 text-red-800';
   };
 
   const calcularTotais = () => {
-    const receitas = movimentos.filter(m => m.tipo === 'RECEITA');
-    const despesas = movimentos.filter(m => m.tipo === 'DESPESA');
+    const receitas = movimentos.filter(m => m.tipo === 'RECEBER');
+    const despesas = movimentos.filter(m => m.tipo === 'PAGAR');
     
     const totalReceitas = receitas.reduce((sum, m) => sum + m.valortotal, 0);
     const totalDespesas = despesas.reduce((sum, m) => sum + m.valortotal, 0);
@@ -439,7 +439,7 @@ const PessoaDetalhes: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTipoColor(movimento.tipo)}`}>
-                          {movimento.tipo === 'RECEITA' ? 'Receita' : 'Despesa'}
+                          {movimento.tipo === 'RECEBER' ? 'Receber' : 'Pagar'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
@@ -453,7 +453,7 @@ const PessoaDetalhes: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(movimento.status)}`}>
-                          {movimento.status === 'PAGO' ? 'Pago' : movimento.status === 'PENDENTE' ? 'Pendente' : 'Cancelado'}
+                          {movimento.status === 'FECHADO' ? 'Fechado' : movimento.status === 'ABERTO' ? 'Aberto' : 'Cancelado'}
                         </span>
                       </td>
                     </tr>

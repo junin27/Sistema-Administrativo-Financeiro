@@ -108,8 +108,8 @@ export function Dashboard() {
     const totalCustomers = pessoas.items?.filter(p => p.tipo === 'CLIENTE').length || 0;
     
     // Correção: Usar 'valortotal' (nome correto na interface) e status em maiúsculo
-    const contasPagar = movimentos.items?.filter(m => m.tipo === 'DESPESA' && m.status !== 'PAGO') || [];
-    const contasReceber = movimentos.items?.filter(m => m.tipo === 'RECEITA' && m.status !== 'PAGO') || [];
+    const contasPagar = movimentos.items?.filter(m => m.tipo === 'PAGAR' && m.status !== 'FECHADO') || [];
+    const contasReceber = movimentos.items?.filter(m => m.tipo === 'RECEBER' && m.status !== 'FECHADO') || [];
     
     const totalPayable = contasPagar.reduce((sum, m) => sum + (m.valortotal || 0), 0);
     const totalReceivable = contasReceber.reduce((sum, m) => sum + (m.valortotal || 0), 0);
@@ -118,21 +118,21 @@ export function Dashboard() {
     // Correção: Usar 'datavencimento' (sem underscore) e verificar existência
     const overdueBills = movimentos.items?.filter(m => {
       if (!m.datavencimento) return false;
-      return m.status !== 'PAGO' && new Date(m.datavencimento) < today;
+      return m.status !== 'FECHADO' && new Date(m.datavencimento) < today;
     }).length || 0;
     
     const thisMonth = new Date();
     thisMonth.setDate(1);
     // Correção: Usar 'dataemissao' (sem underscore)
     const paidThisMonth = movimentos.items?.filter(m => 
-      m.status === 'PAGO' && new Date(m.dataemissao) >= thisMonth
+      m.status === 'FECHADO' && new Date(m.dataemissao) >= thisMonth
     ).length || 0;
 
     const recentActivity = movimentos.items?.slice(0, 5).map(m => ({
       id: m.idMovimentoContas, // Correção: idMovimentoContas
-      type: m.tipo === 'RECEITA' ? 'receipt' : 'payment',
+      type: m.tipo === 'RECEBER' ? 'receipt' : 'payment',
       // Correção: numeronotafiscal (sem underscore)
-      description: `${m.tipo === 'RECEITA' ? 'Recebimento' : 'Pagamento'} - NF ${m.numeronotafiscal || 'N/A'}`,
+      description: `${m.tipo === 'RECEBER' ? 'Recebimento' : 'Pagamento'} - NF ${m.numeronotafiscal || 'N/A'}`,
       amount: m.valortotal, // Correção: valortotal
       date: m.dataemissao // Correção: dataemissao
     })) || [];
@@ -241,7 +241,7 @@ export function Dashboard() {
                     if (!m.datavencimento) return false;
                     const today = new Date().toDateString();
                     const vencimento = new Date(m.datavencimento).toDateString();
-                    return m.status !== 'PAGO' && vencimento === today;
+                    return m.status !== 'FECHADO' && vencimento === today;
                   }).length || 0}
                 </p>
               </div>

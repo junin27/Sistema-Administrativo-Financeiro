@@ -680,11 +680,11 @@ const Movimentos: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      movimento.tipo === 'RECEITA' 
+                      movimento.tipo === 'RECEBER' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {movimento.tipo === 'RECEITA' ? 'Receita' : 'Despesa'}
+                      {movimento.tipo === 'RECEBER' ? 'Receber (Receita)' : 'Pagar (Despesa)'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -698,14 +698,14 @@ const Movimentos: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      movimento.status === 'PAGO' 
+                      movimento.status === 'FECHADO' 
                         ? 'bg-green-100 text-green-800' 
-                        : movimento.status === 'PENDENTE'
+                        : movimento.status === 'ABERTO'
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {movimento.status === 'PAGO' ? 'Pago' : 
-                       movimento.status === 'PENDENTE' ? 'Pendente' : 'Cancelado'}
+                      {movimento.status === 'FECHADO' ? 'Fechado' : 
+                       movimento.status === 'ABERTO' ? 'Aberto' : 'Cancelado'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -723,7 +723,7 @@ const Movimentos: React.FC = () => {
                       >
                         Editar
                       </Link>
-                      {movimento.status === 'PENDENTE' && (
+                      {movimento.status === 'ABERTO' && (
                         <button
                           onClick={() => handleMarcarComoPago(movimento.idMovimentoContas!)}
                           className="text-green-600 hover:text-green-900"
@@ -731,7 +731,7 @@ const Movimentos: React.FC = () => {
                           Pagar
                         </button>
                       )}
-                      {movimento.status === 'PENDENTE' && (
+                      {movimento.status === 'ABERTO' && (
                         <button
                           onClick={() => handleCancelar(movimento.idMovimentoContas!)}
                           className="text-yellow-600 hover:text-yellow-900"

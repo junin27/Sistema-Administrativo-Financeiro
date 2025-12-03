@@ -148,7 +148,7 @@ class MovimentosService {
   }): Promise<MovimentosListResponse> {
     return this.getAll({
       ...params,
-      filters: { ...params?.filters, tipo: 'RECEITA' }
+      filters: { ...params?.filters, tipo: 'RECEBER' }
     });
   }
 
@@ -159,7 +159,7 @@ class MovimentosService {
   }): Promise<MovimentosListResponse> {
     return this.getAll({
       ...params,
-      filters: { ...params?.filters, tipo: 'DESPESA' }
+      filters: { ...params?.filters, tipo: 'PAGAR' }
     });
   }
 
@@ -170,7 +170,7 @@ class MovimentosService {
   }): Promise<MovimentosListResponse> {
     return this.getDespesas({
       ...params,
-      filters: { ...params?.filters, status: 'PENDENTE' }
+      filters: { ...params?.filters, status: 'ABERTO' }
     });
   }
 
@@ -181,13 +181,13 @@ class MovimentosService {
   }): Promise<MovimentosListResponse> {
     return this.getReceitas({
       ...params,
-      filters: { ...params?.filters, status: 'PENDENTE' }
+      filters: { ...params?.filters, status: 'ABERTO' }
     });
   }
 
   async marcarComoPago(id: number, dataPagamento?: string): Promise<MovimentoConta> {
     return this.update(id, {
-      status: 'PAGO',
+      status: 'FECHADO',
       datapagamento: dataPagamento || new Date().toISOString().split('T')[0]
     });
   }
