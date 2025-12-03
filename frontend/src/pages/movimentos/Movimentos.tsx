@@ -322,13 +322,6 @@ const Movimentos: React.FC = () => {
         </div>
       )}
 
-      {!loading && movimentos.length === 0 && !error && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded mb-4">
-          <p className="font-medium">Selecione filtros para visualizar os movimentos</p>
-          <p className="text-sm mt-1">Use os filtros acima para buscar movimentos por tipo, status, fornecedor, nota fiscal ou período.</p>
-        </div>
-      )}
-
       {/* Resumo Financeiro */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">

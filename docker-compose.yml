@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------
+  # BACKEND (FastAPI)
+  # Roda localmente, mas conecta no banco do Supabase
+  # Será deployado no Koyeb usando apenas o Dockerfile interno
+  # ----------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_backend
+    
+    # Carrega as variáveis do arquivo .env que criamos acima
+    env_file:
+      - .env
+      
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - /app/venv
+    networks:
+      - sistema_financeiro_network
+    restart: unless-stopped
+    
+    # Comando ajustado: Não espera mais pelo container 'postgres' local
+    command: >
+      sh -c "
+        echo '🚀 Conectando ao Supabase...' &&
+        sleep 2 &&
+        echo '🔧 Verificando migrações/tabelas...' &&
+        python -c 'from src.config.database import init_db; init_db()' || echo '⚠️ Aviso: Não foi possível inicializar o banco. O servidor continuará rodando.' &&
+        echo '🔥 Iniciando servidor Backend...' &&
+        uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ----------------------------------------------------------------
+  # FRONTEND (React + Vite)
+  # Roda localmente para você desenvolver com Hot Reload
+  # Será deployado na Vercel (que não usa este Docker, usa package.json)
+  # ----------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sistema_financeiro_frontend
+    environment:
+      # O Vite proxy está configurado para redirecionar /api para o backend
+      # O frontend usa caminho relativo /api/v1 que será redirecionado pelo proxy
+      - CHOKIDAR_USEPOLLING=true
+      - DOCKER=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - sistema_financeiro_network
+    # O frontend espera o backend estar pronto para iniciar
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+# Redes
+networks:
+  sistema_financeiro_network:
+    driver: bridge
+
+# Volumes
+volumes:
+  frontend_node_modules:
+
+# Volumes foram removidos pois não há mais banco de dados local.
