@@ -72,6 +72,7 @@ class PessoasService {
     if (params?.filters?.status) queryParams.append('status', params.filters.status);
     const search = params?.filters?.razaosocial || params?.filters?.fantasia;
     if (search) queryParams.append('search', search);
+    if (params?.filters?.include_deleted) queryParams.append('include_deleted', params.filters.include_deleted.toString());
     if (params?.filters?.order_by) queryParams.append('order_by', params.filters.order_by);
     if (params?.filters?.order_dir) queryParams.append('order_dir', params.filters.order_dir);
 
