@@ -40,9 +40,12 @@ class ClassificacaoUpdate(BaseModel):
     status: Optional[StatusClassificacao] = Field(None, description="Status da classificação")
 
 
-class ClassificacaoResponse(ClassificacaoBase):
+class ClassificacaoResponse(BaseModel):
     """Schema de resposta para Classificacao."""
     idClassificacao: int = Field(..., description="ID único da classificação")
+    tipo: Optional[str] = Field(None, description="Tipo: RECEITA ou DESPESA")
+    descricao: Optional[str] = Field(None, max_length=150, description="Descrição da classificação")
+    status: Optional[str] = Field(None, description="Status da classificação")
     deleted_at: Optional[datetime] = Field(None, description="Data de inativação (soft delete)")
     created_at: Optional[datetime] = Field(None, description="Data de criação")
     updated_at: Optional[datetime] = Field(None, description="Data de atualização")

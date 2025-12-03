@@ -60,9 +60,17 @@ class MovimentoContasUpdate(MovimentoContasBase):
     Pessoas_idfaturado: Optional[int] = Field(None, description="ID da pessoa faturada")
 
 
-class MovimentoContasResponse(MovimentoContasBase):
+class MovimentoContasResponse(BaseModel):
     """Schema de resposta para MovimentoContas."""
     idMovimentoContas: int = Field(..., description="ID único do movimento")
+    tipo: Optional[str] = Field(None, max_length=45, description="Tipo do movimento (pagar, receber)")
+    numeronotafiscal: Optional[str] = Field(None, max_length=45, description="Número da nota fiscal")
+    dataemissao: Optional[date] = Field(None, description="Data de emissão")
+    descricao: Optional[str] = Field(None, max_length=300, description="Descrição do movimento")
+    status: Optional[str] = Field(None, max_length=45, description="Status do movimento")
+    valortotal: Optional[float] = Field(None, ge=0, description="Valor total")
+    Pessoas_idFornecedorCliente: Optional[int] = Field(None, description="ID do fornecedor/cliente")
+    Pessoas_idfaturado: Optional[int] = Field(None, description="ID da pessoa faturada")
     
     # Relacionamentos opcionais
     fornecedor_cliente: Optional[PessoasResponse] = Field(None, description="Dados do fornecedor/cliente")

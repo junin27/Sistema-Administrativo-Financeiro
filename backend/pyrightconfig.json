@@ -9,12 +9,10 @@
     "**/.venv",
     "**/.*"
   ],
-  "venvPath": ".",
-  "venv": "venv",
   "pythonVersion": "3.11",
   "pythonPlatform": "All",
   "typeCheckingMode": "basic",
-  "reportMissingImports": "warning",
+  "reportMissingImports": "none",
   "reportMissingTypeStubs": false,
   "reportAttributeAccessIssue": "none",
   "executionEnvironments": [
