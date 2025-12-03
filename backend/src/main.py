@@ -172,16 +172,16 @@ async def startup_event():
     logger.info("Iniciando aplicação...")
     
     try:
-        # Inicializar banco de dados se estiver em modo debug
-        if settings.debug:
-            logger.info("Inicializando banco de dados...")
-            init_db()
-        
-        logger.info("Aplicação iniciada com sucesso!")
-    
+        # Inicializar banco de dados - não bloqueia startup se falhar
+        logger.info("Verificando conexão com banco de dados...")
+        init_db()
+        logger.info("Banco de dados inicializado com sucesso!")
     except Exception as e:
-        logger.error(f"Erro na inicialização: {e}")
-        raise
+        # Não faz raise - permite a aplicação subir mesmo sem DB
+        # Isso evita loops de restart no Koyeb
+        logger.warning(f"⚠️ Aviso na inicialização do DB (app continua): {e}")
+    
+    logger.info("Aplicação iniciada com sucesso!")
 
 
 @app.on_event("shutdown")
