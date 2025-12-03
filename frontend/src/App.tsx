@@ -21,6 +21,7 @@ import Movimentos from './pages/movimentos/Movimentos';
 import MovimentoForm from './pages/movimentos/MovimentoForm';
 import { Parcelas } from './pages/parcelas/Parcelas';
 import { RagConsulta } from './pages/rag/RagConsulta';
+import { ArmazenamentoInterno } from './pages/armazenamento/ArmazenamentoInterno';
 
 // Configuração do React Query
 const queryClient = new QueryClient({
@@ -68,6 +69,9 @@ export function App() {
 
               {/* Consulta RAG */}
               <Route path="/rag" element={<RagConsulta />} />
+
+              {/* Armazenamento Interno */}
+              <Route path="/armazenamento-interno" element={<ArmazenamentoInterno />} />
             </Routes>
           </Layout>
           

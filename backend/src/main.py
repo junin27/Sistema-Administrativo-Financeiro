@@ -19,6 +19,7 @@ from .routers.parcelas_routers import parcelas_router
 from .routers.rag_router import rag_router
 from .routers.classificacao_routers import classificacao_router
 from .routers.config_router import router as config_router
+from .routers.internal_storage_router import router as internal_storage_router
 from .core.constants import INTERNAL_SERVER_ERROR
 from .core.exceptions import DuplicateInvoiceError
 
@@ -196,6 +197,7 @@ app.include_router(parcelas_router, prefix="/api/v1")
 app.include_router(classificacao_router, prefix="/api/v1")
 app.include_router(rag_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
+app.include_router(internal_storage_router, prefix="/api/v1")
 # Routers removidos - sistema agora usa apenas DDL
 # app.include_router(suppliers.router, prefix="/api/v1")
 # app.include_router(customers.router, prefix="/api/v1")

@@ -13,7 +13,8 @@ import {
   UserCheck,
   ArrowUpDown,
   Calendar,
-  Search
+  Search,
+  HardDrive
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -35,6 +36,7 @@ const navigation: NavItem[] = [
   { name: 'Parcelas', href: '/parcelas', icon: Calendar },
   { name: 'Processar PDF', href: '/processar-pdf', icon: FileText },
   { name: 'Consulta RAG', href: '/rag', icon: Search },
+  { name: 'Armazenamento Interno', href: '/armazenamento-interno', icon: HardDrive },
 ];
 
 export function Layout({ children }: LayoutProps) {
