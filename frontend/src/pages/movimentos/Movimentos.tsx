@@ -18,10 +18,10 @@ import { SortableTableHeader, SortOrder } from '../../components/table/SortableT
 // Valor especial para filtro invisível (não aparece para o usuário)
 const HIDDEN_FILTER_VALUE = '__HIDDEN__';
 
-// Tipo estendido que permite HIDDEN_FILTER_VALUE
+// Tipo estendido que permite HIDDEN_FILTER_VALUE e string vazia (para "TODOS")
 type MovimentoContaFilterWithHidden = Omit<MovimentoContaFilter, 'tipo' | 'status'> & {
-  tipo?: 'RECEITA' | 'DESPESA' | typeof HIDDEN_FILTER_VALUE;
-  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE;
+  tipo?: 'RECEITA' | 'DESPESA' | typeof HIDDEN_FILTER_VALUE | '';
+  status?: 'PENDENTE' | 'PAGO' | 'CANCELADO' | typeof HIDDEN_FILTER_VALUE | '';
 };
 
 // Função helper para converter MovimentoContaFilterWithHidden para MovimentoContaFilter
@@ -57,14 +57,14 @@ const Movimentos: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  // Inicializa com filtro invisível ativo
+  const [showFilters] = useState(true);
+  const [showInactive, setShowInactive] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
+  // Inicializa com filtro invisível ativo (igual tela de Pessoas)
   const [filters, setFilters] = useState<MovimentoContaFilterWithHidden>({
     tipo: HIDDEN_FILTER_VALUE,
     status: HIDDEN_FILTER_VALUE
   });
-  const [showFilters] = useState(true);
-  const [showInactive, setShowInactive] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ field: string; order: SortOrder } | undefined>();
 
   const pageSize = 10;
 
@@ -143,29 +143,37 @@ const Movimentos: React.FC = () => {
     }
     
     // Limpa filtros e remove filtro invisível antes de enviar para API
-    const cleanFilters = convertToMovimentoContaFilter(filters);
+    // Seguindo a mesma lógica da tela de Pessoas
+    const cleanFilters: MovimentoContaFilter = {};
     
-    // Verifica se há pelo menos um filtro válido antes de fazer requisição
-    const hasValidFilters = !!(
-      cleanFilters.tipo ||
-      cleanFilters.status ||
-      cleanFilters.numeronotafiscal ||
-      cleanFilters.fornecedor_id ||
-      cleanFilters.data_emissao_inicio ||
-      cleanFilters.data_emissao_fim ||
-      cleanFilters.data_vencimento_inicio ||
-      cleanFilters.data_vencimento_fim
-    );
-    
-    // Se não há filtros válidos, não faz requisição
-    if (!hasValidFilters) {
-      setMovimentos([]);
-      setTotalPages(1);
-      setTotal(0);
-      setCurrentPage(1);
-      setError(null);
-      return;
+    if (filters.numeronotafiscal && filters.numeronotafiscal.trim()) {
+      cleanFilters.numeronotafiscal = filters.numeronotafiscal.trim();
     }
+    if (filters.fornecedor_id) {
+      cleanFilters.fornecedor_id = filters.fornecedor_id;
+    }
+    
+    // Tipo: se não for HIDDEN e não for vazio, inclui no filtro
+    // Se for vazio (''), significa "Todos" - não inclui no filtro (busca todos)
+    if (filters.tipo !== undefined && filters.tipo !== HIDDEN_FILTER_VALUE) {
+      if (filters.tipo !== '' && (filters.tipo === 'RECEITA' || filters.tipo === 'DESPESA')) {
+        cleanFilters.tipo = filters.tipo;
+      }
+    }
+    
+    // Status: mesma lógica do tipo
+    if (filters.status !== undefined && filters.status !== HIDDEN_FILTER_VALUE) {
+      if (filters.status !== '' && (filters.status === 'PENDENTE' || filters.status === 'PAGO' || filters.status === 'CANCELADO')) {
+        cleanFilters.status = filters.status;
+      }
+    }
+    
+    if (filters.data_emissao_inicio) cleanFilters.data_emissao_inicio = filters.data_emissao_inicio;
+    if (filters.data_emissao_fim) cleanFilters.data_emissao_fim = filters.data_emissao_fim;
+    if (filters.data_vencimento_inicio) cleanFilters.data_vencimento_inicio = filters.data_vencimento_inicio;
+    if (filters.data_vencimento_fim) cleanFilters.data_vencimento_fim = filters.data_vencimento_fim;
+    if (filters.order_by) cleanFilters.order_by = filters.order_by;
+    if (filters.order_dir) cleanFilters.order_dir = filters.order_dir;
     
     // Debounce para campos de texto (numeronotafiscal)
     const isTextFilter = !!filters.numeronotafiscal;
@@ -449,7 +457,8 @@ const Movimentos: React.FC = () => {
                     if (val === '__empty') {
                       newFilters.tipo = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
-                      delete newFilters.tipo;
+                      // "TODOS" selecionado - define como string vazia para buscar todos
+                      newFilters.tipo = '';
                     } else {
                       newFilters.tipo = val as 'RECEITA' | 'DESPESA';
                     }
@@ -480,7 +489,8 @@ const Movimentos: React.FC = () => {
                     if (val === '__empty') {
                       newFilters.status = HIDDEN_FILTER_VALUE;
                     } else if (val === '') {
-                      delete newFilters.status;
+                      // "TODOS" selecionado - define como string vazia para buscar todos
+                      newFilters.status = '';
                     } else {
                       newFilters.status = val as 'PENDENTE' | 'PAGO' | 'CANCELADO';
                     }
