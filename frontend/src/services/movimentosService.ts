@@ -79,7 +79,7 @@ export interface MovimentoResumo {
 }
 
 class MovimentosService {
-  private baseUrl = '/movimentos';
+  private baseUrl = '/movimentos/';
 
   async getAll(params?: {
     page?: number;
@@ -100,35 +100,39 @@ class MovimentosService {
     // Note: Backend filter schema has data_inicio/data_fim, not specific for emissao/vencimento. 
     // ddl_schemas.py says data_inicio/data_fim. I'll map data_emissao_inicio to data_inicio for now.
 
-    const path = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+    // Ensure trailing slash to avoid redirect
+    const path = this.baseUrl;
     const url = queryParams.toString() ? `${path}?${queryParams.toString()}` : path;
     const response = await api.get(url);
     return response.data;
   }
 
   async getById(id: number): Promise<MovimentoConta> {
-    const response = await api.get(`${this.baseUrl}/${id}`);
+    const response = await api.get(`${this.baseUrl}${id}`);
     return response.data;
   }
 
   async create(movimento: MovimentoContaCreate): Promise<MovimentoConta> {
-    const path = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    // Ensure trailing slash
+    const path = this.baseUrl;
     const response = await api.post(path, movimento);
     return response.data;
   }
 
   async update(id: number, movimento: MovimentoContaUpdate): Promise<MovimentoConta> {
-    const response = await api.put(`${this.baseUrl}/${id}`, movimento);
+    const response = await api.put(`${this.baseUrl}${id}`, movimento);
     return response.data;
   }
 
   async delete(id: number): Promise<void> {
-    await api.delete(`${this.baseUrl}/${id}`);
+    await api.delete(`${this.baseUrl}${id}`);
   }
 
   async getResumo(): Promise<MovimentoResumo[]> {
     try {
-      const response = await api.get(`${this.baseUrl}/resumo`);
+      // Avoid redirect by using correct endpoint with trailing slash if needed, 
+      // or matching backend route exactly. Backend is /movimentos/resumo
+      const response = await api.get(`${this.baseUrl}resumo`);
       return response.data;
     } catch (error) {
       // Se o endpoint de resumo falhar, retorna array vazio ao invés de quebrar

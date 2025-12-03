@@ -92,62 +92,43 @@ const getBaseUrl = () => {
   return url;
 };
 
+// Configuração base do Axios
 export const api = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 120000, // 2 minutos (para processamento de PDF com retry do Gemini)
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptador para garantir HTTPS em todas as requisições
-api.interceptors.request.use((config) => {
-  const originalBase = config.baseURL;
-  const originalUrl = config.url;
-  
-  // Se a página está em HTTPS, SEMPRE força baseURL e URL para HTTPS
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    // SEMPRE força baseURL para HTTPS se começar com http://
-    if (config.baseURL && /^http:\/\//i.test(config.baseURL)) {
-      config.baseURL = config.baseURL.replace(/^http:\/\//i, 'https://');
-      globalThis['console']?.warn('[API] baseURL forced to https:', originalBase, '->', config.baseURL);
-    }
-    
-    // Se a URL for absoluta e começar com http, força https
-    if (config.url && config.url.startsWith('http://')) {
-      config.url = config.url.replace(/^http:\/\//i, 'https://');
-      globalThis['console']?.warn('[API] URL forced to https:', originalUrl, '->', config.url);
-    }
-  }
-  globalThis['console']?.debug('[API] request config:', {
-    method: config.method,
-    baseURL: config.baseURL,
-    url: config.url,
-    fullURL: (() => {
-      try {
-        if (config.url?.startsWith('http')) return config.url;
-        if (config.baseURL) return new URL(config.url || '', config.baseURL).href;
-        return config.url;
-      } catch {
-        return config.url;
-      }
-    })()
-  });
-  return config;
-});
-
-// Interceptador de requisições
+// Interceptor para debug e correção de URL
 api.interceptors.request.use(
   (config) => {
-    // Aqui pode adicionar token de autenticação quando implementar
-    // const token = localStorage.getItem('authToken');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Forçar HTTPS se a URL começar com http://
+    if (config.url?.startsWith('http://')) {
+        config.url = config.url.replace('http://', 'https://');
+    }
+    // Também corrigir baseURL se necessário (embora axios combine os dois)
+    if (config.baseURL?.startsWith('http://') && window.location.protocol === 'https:') {
+        config.baseURL = config.baseURL.replace('http://', 'https://');
+    }
+
+    const fullUrl = config.url?.startsWith('http') 
+      ? config.url 
+      : `${config.baseURL}${config.url}`;
+      
+    // Log apenas em desenvolvimento ou se houver erro
+    if (import.meta.env.DEV) {
+      globalThis['console']?.log(`[API] Request: ${config.method?.toUpperCase()} ${fullUrl}`, {
+        params: config.params,
+        data: config.data
+      });
+    }
+    
     return config;
   },
   (error) => {
-    return Promise.reject(new Error(error));
+    globalThis['console']?.error('[API] Request Error:', error);
+    return Promise.reject(error);
   }
 );
 
