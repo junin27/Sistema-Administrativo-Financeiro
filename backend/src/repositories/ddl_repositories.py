@@ -4,7 +4,7 @@ Implementa operações CRUD básicas seguindo o padrão do sistema.
 """
 
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
 from datetime import datetime
 
@@ -292,7 +292,11 @@ class MovimentoContasRepository:
         Busca movimento por ID.
         Por padrão, ignora registros inativados (soft delete).
         """
-        query = self.db.query(MovimentoContas).filter(
+        query = self.db.query(MovimentoContas).options(
+            joinedload(MovimentoContas.fornecedor_cliente),
+            joinedload(MovimentoContas.faturado),
+            joinedload(MovimentoContas.classificacoes)
+        ).filter(
             MovimentoContas.idMovimentoContas == movimento_id
         )
         
@@ -306,7 +310,11 @@ class MovimentoContasRepository:
         Lista todos os movimentos com paginação.
         Por padrão, ignora registros inativados.
         """
-        query = self.db.query(MovimentoContas)
+        query = self.db.query(MovimentoContas).options(
+            joinedload(MovimentoContas.fornecedor_cliente),
+            joinedload(MovimentoContas.faturado),
+            joinedload(MovimentoContas.classificacoes)
+        )
         
         if not include_deleted:
             query = query.filter(MovimentoContas.deleted_at.is_(None))
@@ -426,7 +434,11 @@ class MovimentoContasRepository:
         order_dir: Optional[str] = None
     ) -> tuple[List[MovimentoContas], int]:
         """Busca movimentos com múltiplos filtros combinados e ordenação."""
-        query = self.db.query(MovimentoContas)
+        query = self.db.query(MovimentoContas).options(
+            joinedload(MovimentoContas.fornecedor_cliente),
+            joinedload(MovimentoContas.faturado),
+            joinedload(MovimentoContas.classificacoes)
+        )
         
         # Aplicar filtro de soft delete
         if not include_deleted:
@@ -462,6 +474,15 @@ class MovimentoContasRepository:
         total = query.count()
         items = query.offset(skip).limit(limit).all()
         return items, total
+
+    def get_total_by_tipo(self, tipo: str) -> float:
+        """Retorna a soma do valor total de movimentos de um tipo."""
+        query = self.db.query(func.sum(MovimentoContas.valortotal)).filter(
+            MovimentoContas.tipo == tipo,
+            MovimentoContas.deleted_at.is_(None)
+        )
+        result = query.scalar()
+        return float(result) if result else 0.0
 
     def find_inactive(self) -> List[MovimentoContas]:
         """Busca apenas movimentos inativados (soft deleted)."""
