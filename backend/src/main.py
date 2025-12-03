@@ -42,9 +42,9 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"], # Permitir todas as origens para evitar problemas em produção/koyeb
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_methods=["*"], # Permitir todos os métodos (GET, POST, PUT, DELETE, OPTIONS, etc)
     allow_headers=["*"],
 )
 
