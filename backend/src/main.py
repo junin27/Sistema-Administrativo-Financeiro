@@ -170,18 +170,9 @@ async def general_exception_handler(request: Request, exc: Exception):
 async def startup_event():
     """Evento executado na inicialização da aplicação."""
     logger.info("Iniciando aplicação...")
-    
-    try:
-        # Inicializar banco de dados - não bloqueia startup se falhar
-        logger.info("Verificando conexão com banco de dados...")
-        init_db()
-        logger.info("Banco de dados inicializado com sucesso!")
-    except Exception as e:
-        # Não faz raise - permite a aplicação subir mesmo sem DB
-        # Isso evita loops de restart no Koyeb
-        logger.warning(f"⚠️ Aviso na inicialização do DB (app continua): {e}")
-    
     logger.info("Aplicação iniciada com sucesso!")
+    # init_db() removido do startup para evitar timeout no Koyeb
+    # O banco será inicializado na primeira requisição se necessário
 
 
 @app.on_event("shutdown")
